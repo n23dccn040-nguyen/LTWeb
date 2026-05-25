@@ -1,5 +1,5 @@
 {
-  "version": 4,
+  "version": 3,
   "targets": {
     "net10.0": {
       "Azure.Core/1.47.1": {
@@ -3575,19 +3575,19 @@
     ]
   },
   "packageFolders": {
-    "C:\\Users\\TRAN HUU\\.nuget\\packages\\": {}
+    "C:\\Users\\TGDD\\.nuget\\packages\\": {}
   },
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "F:\\Đồ án LTWeb\\HotelBookingAPI\\HotelBookingAPI.csproj",
+      "projectUniqueName": "E:\\Do-an-LTWeb\\HotelBookingAPI\\HotelBookingAPI.csproj",
       "projectName": "HotelBookingAPI",
-      "projectPath": "F:\\Đồ án LTWeb\\HotelBookingAPI\\HotelBookingAPI.csproj",
-      "packagesPath": "C:\\Users\\TRAN HUU\\.nuget\\packages\\",
-      "outputPath": "F:\\Đồ án LTWeb\\HotelBookingAPI\\obj\\",
+      "projectPath": "E:\\Do-an-LTWeb\\HotelBookingAPI\\HotelBookingAPI.csproj",
+      "packagesPath": "C:\\Users\\TGDD\\.nuget\\packages\\",
+      "outputPath": "E:\\Do-an-LTWeb\\HotelBookingAPI\\obj\\",
       "projectStyle": "PackageReference",
       "configFilePaths": [
-        "C:\\Users\\TRAN HUU\\AppData\\Roaming\\NuGet\\NuGet.Config"
+        "C:\\Users\\TGDD\\AppData\\Roaming\\NuGet\\NuGet.Config"
       ],
       "originalTargetFrameworks": [
         "net10.0"
@@ -3597,7 +3597,6 @@
       },
       "frameworks": {
         "net10.0": {
-          "framework": "net10.0",
           "targetAlias": "net10.0",
           "projectReferences": {}
         }
@@ -3612,11 +3611,10 @@
         "auditLevel": "low",
         "auditMode": "all"
       },
-      "SdkAnalysisLevel": "10.0.300"
+      "SdkAnalysisLevel": "10.0.200"
     },
     "frameworks": {
       "net10.0": {
-        "framework": "net10.0",
         "targetAlias": "net10.0",
         "dependencies": {
           "Microsoft.AspNetCore.OpenApi": {
@@ -3663,7 +3661,7 @@
             "privateAssets": "all"
           }
         },
-        "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\10.0.300/PortableRuntimeIdentifierGraph.json",
+        "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\10.0.203/PortableRuntimeIdentifierGraph.json",
         "packagesToPrune": {
           "Microsoft.AspNetCore": "(,10.0.32767]",
           "Microsoft.AspNetCore.Antiforgery": "(,10.0.32767]",
