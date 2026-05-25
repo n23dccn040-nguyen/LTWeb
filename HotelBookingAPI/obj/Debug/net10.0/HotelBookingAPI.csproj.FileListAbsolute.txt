@@ -39,6 +39,9 @@ F:\Đồ án LTWeb\HotelBookingAPI\bin\Debug\net10.0\Microsoft.SqlServer.Server.
 F:\Đồ án LTWeb\HotelBookingAPI\bin\Debug\net10.0\Microsoft.VisualStudio.SolutionPersistence.dll
 F:\Đồ án LTWeb\HotelBookingAPI\bin\Debug\net10.0\Mono.TextTemplating.dll
 F:\Đồ án LTWeb\HotelBookingAPI\bin\Debug\net10.0\Newtonsoft.Json.dll
+F:\Đồ án LTWeb\HotelBookingAPI\bin\Debug\net10.0\Swashbuckle.AspNetCore.Swagger.dll
+F:\Đồ án LTWeb\HotelBookingAPI\bin\Debug\net10.0\Swashbuckle.AspNetCore.SwaggerGen.dll
+F:\Đồ án LTWeb\HotelBookingAPI\bin\Debug\net10.0\Swashbuckle.AspNetCore.SwaggerUI.dll
 F:\Đồ án LTWeb\HotelBookingAPI\bin\Debug\net10.0\System.ClientModel.dll
 F:\Đồ án LTWeb\HotelBookingAPI\bin\Debug\net10.0\System.CodeDom.dll
 F:\Đồ án LTWeb\HotelBookingAPI\bin\Debug\net10.0\System.Composition.AttributedModel.dll
@@ -141,6 +144,7 @@ F:\Đồ án LTWeb\HotelBookingAPI\obj\Debug\net10.0\HotelBookingAPI.AssemblyInf
 F:\Đồ án LTWeb\HotelBookingAPI\obj\Debug\net10.0\HotelBookingAPI.csproj.CoreCompileInputs.cache
 F:\Đồ án LTWeb\HotelBookingAPI\obj\Debug\net10.0\HotelBookingAPI.MvcApplicationPartsAssemblyInfo.cs
 F:\Đồ án LTWeb\HotelBookingAPI\obj\Debug\net10.0\HotelBookingAPI.MvcApplicationPartsAssemblyInfo.cache
+F:\Đồ án LTWeb\HotelBookingAPI\obj\Debug\net10.0\HotelBookingAPI.sourcelink.json
 F:\Đồ án LTWeb\HotelBookingAPI\obj\Debug\net10.0\rjimswa.dswa.cache.json
 F:\Đồ án LTWeb\HotelBookingAPI\obj\Debug\net10.0\rjsmrazor.dswa.cache.json
 F:\Đồ án LTWeb\HotelBookingAPI\obj\Debug\net10.0\rjsmcshtml.dswa.cache.json
@@ -156,7 +160,3 @@ F:\Đồ án LTWeb\HotelBookingAPI\obj\Debug\net10.0\refint\HotelBookingAPI.dll
 F:\Đồ án LTWeb\HotelBookingAPI\obj\Debug\net10.0\HotelBookingAPI.pdb
 F:\Đồ án LTWeb\HotelBookingAPI\obj\Debug\net10.0\HotelBookingAPI.genruntimeconfig.cache
 F:\Đồ án LTWeb\HotelBookingAPI\obj\Debug\net10.0\ref\HotelBookingAPI.dll
-F:\Đồ án LTWeb\HotelBookingAPI\bin\Debug\net10.0\Swashbuckle.AspNetCore.Swagger.dll
-F:\Đồ án LTWeb\HotelBookingAPI\bin\Debug\net10.0\Swashbuckle.AspNetCore.SwaggerGen.dll
-F:\Đồ án LTWeb\HotelBookingAPI\bin\Debug\net10.0\Swashbuckle.AspNetCore.SwaggerUI.dll
-F:\Đồ án LTWeb\HotelBookingAPI\obj\Debug\net10.0\HotelBookingAPI.sourcelink.json

@@ -10,7 +10,7 @@ namespace HotelBookingAPI.Models
 
         public int RoomTypeId { get; set; }
         [ForeignKey("RoomTypeId")]
-        public RoomType RoomType { get; set; }
+        public RoomType? RoomType { get; set; } // Đã thêm dấu ? ở đây
 
         [Required, StringLength(50)]
         public string RoomNumber { get; set; } // VD: 101, 102, 201
@@ -19,5 +19,6 @@ namespace HotelBookingAPI.Models
         
         // Lưu ý: Trạng thái trống/bận theo ngày sẽ được tính toán dựa trên bảng Booking, 
         // không lưu cứng ở đây vì trạng thái thay đổi liên tục theo thời gian.
+        public bool IsAvailable { get; set; } = true;
     }
 }
