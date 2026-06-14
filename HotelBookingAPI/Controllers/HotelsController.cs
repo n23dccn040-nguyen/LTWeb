@@ -16,14 +16,30 @@ namespace HotelBookingAPI.Controllers
             _context = context;
         }
 
-        // API 1: Lấy toàn bộ danh sách khách sạn (Giữ nguyên của bạn của bạn)
+        // API 1: Lấy toàn bộ danh sách khách sạn
         [HttpGet]
         public async Task<ActionResult<IEnumerable<Hotel>>> GetHotels()
         {
             return await _context.Hotels.ToListAsync();
         }
 
-        // API 2: Tìm kiếm nâng cao dành cho Khách du lịch (Bộ lọc, Ngày trống, Phân trang, Sắp xếp)
+        // API 1.5: Lấy chi tiết 1 khách sạn theo ID (Dành cho trang Chi tiết khách sạn)
+        [HttpGet("{id}")]
+        public async Task<ActionResult<Hotel>> GetHotelById(int id)
+        {
+            var hotel = await _context.Hotels
+                .Include(h => h.RoomTypes!) // Tải kèm danh sách loại phòng để hiển thị
+                .FirstOrDefaultAsync(h => h.Id == id);
+
+            if (hotel == null)
+            {
+                return NotFound("Không tìm thấy Khách sạn với Id này.");
+            }
+
+            return Ok(hotel);
+        }
+
+        // API 2: Tìm kiếm nâng cao dành cho Khách du lịch
         [HttpGet("search")]
         public async Task<IActionResult> SearchHotels(
             [FromQuery] string? city,
@@ -37,7 +53,7 @@ namespace HotelBookingAPI.Controllers
             [FromQuery] string sortBy = "name",
             [FromQuery] string sortOrder = "asc")
         {
-            // Tải trước dữ liệu liên quan (Hotels -> RoomTypes -> Rooms & Bookings) để tính toán
+            // Tải trước dữ liệu liên quan
             var query = _context.Hotels
                 .Include(h => h.RoomTypes!)
                     .ThenInclude(rt => rt.Rooms)
@@ -51,14 +67,13 @@ namespace HotelBookingAPI.Controllers
                 query = query.Where(h => h.City.Contains(city));
             }
 
-            // 2. LỌC NÂNG CAO THEO ĐIỀU KIỆN CỦA LOẠI PHÒNG VÀ NGÀY TRỐNG
+            // 2. LỌC NÂNG CAO
             if (minPrice.HasValue || maxPrice.HasValue || !string.IsNullOrEmpty(roomType) || (checkIn.HasValue && checkOut.HasValue))
             {
                 query = query.Where(h => h.RoomTypes!.Any(rt =>
                     (!minPrice.HasValue || rt.Price >= minPrice.Value) &&
                     (!maxPrice.HasValue || rt.Price <= maxPrice.Value) &&
                     (string.IsNullOrEmpty(roomType) || rt.Name.Contains(roomType)) &&
-                    // Thuật toán kiểm tra ngày trống: Tổng số phòng hiện có trừ đi số phòng đã bị đặt trong khoảng thời gian đó phải > 0
                     (!checkIn.HasValue || !checkOut.HasValue ||
                         (rt.Rooms!.Count(r => !r.IsMaintenance) - 
                          rt.Bookings!.Where(b => b.Status != "Cancelled" && b.CheckInDate < checkOut.Value && b.CheckOutDate > checkIn.Value)
@@ -67,7 +82,7 @@ namespace HotelBookingAPI.Controllers
                 ));
             }
 
-            // 3. SẮP XẾP (SORTING)
+            // 3. SẮP XẾP
             if (sortBy.ToLower() == "name")
             {
                 query = sortOrder.ToLower() == "desc" ? query.OrderByDescending(h => h.Name) : query.OrderBy(h => h.Name);
@@ -77,7 +92,7 @@ namespace HotelBookingAPI.Controllers
                 query = sortOrder.ToLower() == "desc" ? query.OrderByDescending(h => h.City) : query.OrderBy(h => h.City);
             }
 
-            // 4. PHÂN TRANG (PAGINATION)
+            // 4. PHÂN TRANG
             var totalItems = await query.CountAsync();
             var totalPages = (int)Math.Ceiling(totalItems / (double)pageSize);
 
@@ -90,7 +105,6 @@ namespace HotelBookingAPI.Controllers
                     h.City,
                     h.Address,
                     h.Description,
-                    // Chỉ trả về các loại phòng thỏa mãn bộ lọc để hiển thị đúng giá lẻ
                     RoomTypes = h.RoomTypes!.Select(rt => new {
                         rt.Id,
                         rt.Name,
@@ -115,13 +129,50 @@ namespace HotelBookingAPI.Controllers
             });
         }
 
-        // API 3: Thêm một khách sạn mới (Giữ nguyên)
+        // API 3: Thêm một khách sạn mới
         [HttpPost]
         public async Task<ActionResult<Hotel>> PostHotel(Hotel hotel)
         {
             _context.Hotels.Add(hotel);
             await _context.SaveChangesAsync();
             return CreatedAtAction("GetHotels", new { id = hotel.Id }, hotel);
+        }
+
+        // API 4: Cập nhật thông tin khách sạn (MỚI)
+        [HttpPut("{id}")]
+        public async Task<IActionResult> UpdateHotel(int id, Hotel hotelRequest)
+        {
+            var existingHotel = await _context.Hotels.FindAsync(id);
+            if (existingHotel == null)
+            {
+                return NotFound("Không tìm thấy Khách sạn với Id này để cập nhật.");
+            }
+
+            // Ghi đè dữ liệu mới
+            existingHotel.Name = hotelRequest.Name;
+            existingHotel.City = hotelRequest.City;
+            existingHotel.Address = hotelRequest.Address;
+            existingHotel.Description = hotelRequest.Description;
+
+            await _context.SaveChangesAsync();
+
+            return Ok(existingHotel); // Trả về thông tin khách sạn sau khi đã sửa
+        }
+
+        // API 5: Xóa khách sạn (MỚI)
+        [HttpDelete("{id}")]
+        public async Task<IActionResult> DeleteHotel(int id)
+        {
+            var hotel = await _context.Hotels.FindAsync(id);
+            if (hotel == null)
+            {
+                return NotFound("Không tìm thấy Khách sạn với Id này để xóa.");
+            }
+
+            _context.Hotels.Remove(hotel);
+            await _context.SaveChangesAsync();
+
+            return Ok(new { message = $"Đã xóa thành công khách sạn: {hotel.Name}" });
         }
     }
 }

@@ -17,7 +17,6 @@ namespace HotelBookingAPI.Controllers
         }
 
         // 1. Lấy danh sách các phòng thuộc một LOẠI PHÒNG cụ thể
-        // GET: api/Rooms/roomtype/1
         [HttpGet("roomtype/{roomTypeId}")]
         public async Task<ActionResult<IEnumerable<Room>>> GetRoomsByRoomType(int roomTypeId)
         {
@@ -26,12 +25,10 @@ namespace HotelBookingAPI.Controllers
                 .ToListAsync();
         }
 
-        // 2. Thêm một Phòng mới (Ví dụ: Căn hộ A, Phòng 101...)
-        // POST: api/Rooms
+        // 2. Thêm một Phòng mới
         [HttpPost]
         public async Task<ActionResult<Room>> PostRoom(Room room)
         {
-            // Kiểm tra xem Loại phòng (RoomType) có tồn tại không
             var roomTypeExists = await _context.RoomTypes.AnyAsync(rt => rt.Id == room.RoomTypeId);
             if (!roomTypeExists)
             {
@@ -44,8 +41,7 @@ namespace HotelBookingAPI.Controllers
             return CreatedAtAction("GetRoomsByRoomType", new { roomTypeId = room.RoomTypeId }, room);
         }
 
-        // 3. (Hàm quan trọng) Cập nhật trạng thái phòng: Đang rảnh (true) <-> Có khách (false)
-        // PUT: api/Rooms/5/status
+        // 3. Cập nhật trạng thái phòng: Đang rảnh (true) <-> Có khách (false)
         [HttpPut("{id}/status")]
         public async Task<IActionResult> UpdateRoomStatus(int id, [FromBody] bool isAvailable)
         {
@@ -55,10 +51,50 @@ namespace HotelBookingAPI.Controllers
                 return NotFound("Không tìm thấy phòng này trong hệ thống.");
             }
 
-            room.IsAvailable = isAvailable; // Đổi trạng thái
-            await _context.SaveChangesAsync(); // Lưu vào SQL
+            room.IsAvailable = isAvailable;
+            await _context.SaveChangesAsync();
 
             return Ok(new { message = "Cập nhật trạng thái phòng thành công!" });
+        }
+
+        // 4. Cập nhật TOÀN BỘ thông tin phòng 
+        [HttpPut("{id}")]
+        public async Task<IActionResult> UpdateRoom(int id, Room roomRequest)
+        {
+            var existingRoom = await _context.Rooms.FindAsync(id);
+            if (existingRoom == null)
+            {
+                return NotFound("Không tìm thấy phòng này.");
+            }
+
+            var roomTypeExists = await _context.RoomTypes.AnyAsync(rt => rt.Id == roomRequest.RoomTypeId);
+            if (!roomTypeExists)
+            {
+                return BadRequest("Không tìm thấy Loại phòng với Id này.");
+            }
+
+            existingRoom.RoomNumber = roomRequest.RoomNumber;
+            existingRoom.IsMaintenance = roomRequest.IsMaintenance;
+            existingRoom.IsAvailable = roomRequest.IsAvailable;
+            existingRoom.RoomTypeId = roomRequest.RoomTypeId;
+
+            await _context.SaveChangesAsync();
+            return Ok(existingRoom);
+        }
+
+        // 5. Xóa phòng 
+        [HttpDelete("{id}")]
+        public async Task<IActionResult> DeleteRoom(int id)
+        {
+            var room = await _context.Rooms.FindAsync(id);
+            if (room == null)
+            {
+                return NotFound("Không tìm thấy phòng này để xóa.");
+            }
+
+            _context.Rooms.Remove(room);
+            await _context.SaveChangesAsync();
+            return Ok(new { message = $"Đã xóa thành công phòng số: {room.RoomNumber}" });
         }
     }
 }
