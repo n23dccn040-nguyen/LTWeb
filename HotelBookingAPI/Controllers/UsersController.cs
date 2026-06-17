@@ -5,6 +5,13 @@ using HotelBookingAPI.Models;
 
 namespace HotelBookingAPI.Controllers
 {
+    // Class DTO để hứng dữ liệu rút gọn từ Frontend gửi lên, tránh lỗi bắt buộc mật khẩu
+    public class UpdateUserDTO
+    {
+        public string Role { get; set; }
+        public bool IsActive { get; set; }
+    }
+
     [Route("api/[controller]")]
     [ApiController]
     public class UsersController : ControllerBase
@@ -61,9 +68,9 @@ namespace HotelBookingAPI.Controllers
             });
         }
 
-        // PUT: api/Users/5
+        // PUT: api/Users/5 - FIX LỖI KHÓA/ĐỔI QUYỀN TÀI KHOẢN
         [HttpPut("{id}")]
-        public async Task<IActionResult> UpdateUser(int id, User userRequest)
+        public async Task<IActionResult> UpdateUser(int id, [FromBody] UpdateUserDTO userRequest)
         {
             var user = await _context.Users.FindAsync(id);
             if (user == null)
@@ -71,13 +78,37 @@ namespace HotelBookingAPI.Controllers
                 return NotFound("Không tìm thấy người dùng.");
             }
 
-            // Chỉ cho phép cập nhật Role và IsActive từ Admin
+            // Chỉ cập nhật Role và IsActive từ Admin gửi lên
             user.Role = userRequest.Role;
             user.IsActive = userRequest.IsActive;
 
             await _context.SaveChangesAsync();
 
             return Ok(new { message = "Cập nhật thông tin người dùng thành công." });
+        }
+
+        // DELETE: api/Users/5 - THÊM MỚI CHỨC NĂNG XÓA TÀI KHOẢN
+        [HttpDelete("{id}")]
+        public async Task<IActionResult> DeleteUser(int id)
+        {
+            var user = await _context.Users.FindAsync(id);
+            if (user == null)
+            {
+                return NotFound("Không tìm thấy người dùng để xóa.");
+            }
+
+            // Tính năng nâng cao: Kiểm tra nếu tài khoản này đang được giao quản lý khách sạn
+            // Nếu xóa sẽ bị lỗi ràng buộc khóa ngoại (Foreign Key Exception) trong SQL Server
+            var managesHotel = await _context.Hotels.AnyAsync(h => h.ManagerId == id);
+            if (managesHotel)
+            {
+                return BadRequest(new { message = "Không thể xóa tài khoản này vì đang quản lý một khách sạn trên hệ thống. Hãy gỡ bỏ hoặc thay đổi quản lý của khách sạn đó trước!" });
+            }
+
+            _context.Users.Remove(user);
+            await _context.SaveChangesAsync();
+
+            return Ok(new { message = "Xóa tài khoản người dùng thành công." });
         }
     }
 }

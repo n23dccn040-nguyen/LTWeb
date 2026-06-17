@@ -23,17 +23,7 @@ namespace HotelBookingAPI.Controllers
             return await _context.Hotels.ToListAsync();
         }
 
-        // Lấy danh sách khách sạn theo ManagerId
-        [HttpGet("manager/{managerId}")]
-        public async Task<ActionResult<IEnumerable<Hotel>>> GetHotelsByManager(int managerId)
-        {
-            var hotels = await _context.Hotels
-                .Where(h => h.ManagerId == managerId)
-                .ToListAsync();
-            return Ok(hotels);
-        }
-
-        // API 1.5: Lấy chi tiết 1 khách sạn theo ID (Dành cho trang Chi tiết khách sạn)
+        // API 1.5: Lấy chi tiết 1 khách sạn theo ID (Quan trọng: Dành cho trang HotelDetail.jsx)
         [HttpGet("{id}")]
         public async Task<ActionResult<Hotel>> GetHotelById(int id)
         {
@@ -43,10 +33,20 @@ namespace HotelBookingAPI.Controllers
 
             if (hotel == null)
             {
-                return NotFound("Không tìm thấy Khách sạn với Id này.");
+                return NotFound("Không tìm thấy khách sạn.");
             }
 
             return Ok(hotel);
+        }
+
+        // Lấy danh sách khách sạn theo ManagerId
+        [HttpGet("manager/{managerId}")]
+        public async Task<ActionResult<IEnumerable<Hotel>>> GetHotelsByManager(int managerId)
+        {
+            var hotels = await _context.Hotels
+                .Where(h => h.ManagerId == managerId)
+                .ToListAsync();
+            return Ok(hotels);
         }
 
         // API 2: Tìm kiếm nâng cao dành cho Khách du lịch
@@ -85,7 +85,7 @@ namespace HotelBookingAPI.Controllers
                     (!maxPrice.HasValue || rt.Price <= maxPrice.Value) &&
                     (string.IsNullOrEmpty(roomType) || rt.Name.Contains(roomType)) &&
                     (!checkIn.HasValue || !checkOut.HasValue ||
-                        (rt.Rooms!.Count(r => !r.IsMaintenance) - 
+                        (rt.Rooms!.Count(r => !r.IsMaintenance) -
                          rt.Bookings!.Where(b => b.Status != "Cancelled" && b.CheckInDate < checkOut.Value && b.CheckOutDate > checkIn.Value)
                                      .Sum(b => b.RoomQuantity) > 0)
                     )
@@ -115,6 +115,7 @@ namespace HotelBookingAPI.Controllers
                     h.City,
                     h.Address,
                     h.Description,
+                    h.ManagerId,
                     RoomTypes = h.RoomTypes!.Select(rt => new {
                         rt.Id,
                         rt.Name,
@@ -145,10 +146,11 @@ namespace HotelBookingAPI.Controllers
         {
             _context.Hotels.Add(hotel);
             await _context.SaveChangesAsync();
-            return CreatedAtAction("GetHotels", new { id = hotel.Id }, hotel);
+            // Đã sửa lỗi 500: Gọi trỏ đúng vào hàm GetHotelById
+            return CreatedAtAction(nameof(GetHotelById), new { id = hotel.Id }, hotel);
         }
 
-        // API 4: Cập nhật thông tin khách sạn (MỚI)
+        // API 4: Cập nhật thông tin khách sạn (Đã gộp chung hàm tránh lỗi xung đột)
         [HttpPut("{id}")]
         public async Task<IActionResult> UpdateHotel(int id, Hotel hotelRequest)
         {
@@ -163,17 +165,14 @@ namespace HotelBookingAPI.Controllers
             existingHotel.City = hotelRequest.City;
             existingHotel.Address = hotelRequest.Address;
             existingHotel.Description = hotelRequest.Description;
-            // Also update manager if provided
-            if (hotelRequest.ManagerId.HasValue) {
-                existingHotel.ManagerId = hotelRequest.ManagerId;
-            }
+            existingHotel.ManagerId = hotelRequest.ManagerId;
 
             await _context.SaveChangesAsync();
 
-            return Ok(existingHotel); // Trả về thông tin khách sạn sau khi đã sửa
+            return Ok(existingHotel); 
         }
 
-        // API 5: Xóa khách sạn (MỚI)
+        // API 5: Xóa khách sạn
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteHotel(int id)
         {

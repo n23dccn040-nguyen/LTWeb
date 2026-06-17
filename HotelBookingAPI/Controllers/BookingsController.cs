@@ -5,6 +5,19 @@ using HotelBookingAPI.Models;
 
 namespace HotelBookingAPI.Controllers
 {
+    // Lớp DTO để nhận dữ liệu đặt phòng thuần túy từ Frontend, tránh lỗi xác thực Model phức tạp
+    public class CreateBookingDTO
+    {
+        public int? UserId { get; set; }
+        public string GuestName { get; set; }
+        public string GuestPhone { get; set; }
+        public int RoomTypeId { get; set; }
+        public int RoomQuantity { get; set; }
+        public DateTime CheckInDate { get; set; }
+        public DateTime CheckOutDate { get; set; }
+        public decimal TotalPrice { get; set; }
+    }
+
     [Route("api/[controller]")]
     [ApiController]
     public class BookingsController : ControllerBase
@@ -16,196 +29,157 @@ namespace HotelBookingAPI.Controllers
             _context = context;
         }
 
-        // 1. Thực hiện Đặt phòng (Giữ nguyên logic chuẩn của bạn)
+        // 1. Thực hiện Đặt phòng (Đã fix lỗi DTO và lỗi định tuyến CreatedAtAction)
         [HttpPost]
-        public async Task<ActionResult<Booking>> CreateBooking(Booking booking)
+        public async Task<IActionResult> CreateBooking([FromBody] CreateBookingDTO dto)
         {
-            // Kiểm tra xem Loại phòng có tồn tại không
-            var roomType = await _context.RoomTypes.FindAsync(booking.RoomTypeId);
-            if (roomType == null) return BadRequest("Loại phòng không tồn tại.");
-
-            // Tìm một phòng bất kỳ thuộc loại này mà đang trống (IsAvailable = true)
-            var availableRoom = await _context.Rooms
-                .FirstOrDefaultAsync(r => r.RoomTypeId == booking.RoomTypeId && r.IsAvailable == true);
-
-            if (availableRoom == null)
+            // Kiểm tra xem Loại phòng có tồn tại trên hệ thống không
+            var roomType = await _context.RoomTypes.FindAsync(dto.RoomTypeId);
+            if (roomType == null) 
             {
-                return BadRequest("Xin lỗi, loại phòng này hiện không còn phòng trống.");
+                return BadRequest(new { message = "Loại phòng được chọn không tồn tại." });
             }
 
-            // --- GIAO DỊCH ĐẶT PHÒNG ---
-            
-            // 1. Lưu thông tin đặt phòng
-            _context.Bookings.Add(booking);
-            
-            // 2. Tự động đổi trạng thái phòng thành "Đang có khách" (false)
-            availableRoom.IsAvailable = false;
-            
-            await _context.SaveChangesAsync();
-
-            return CreatedAtAction(nameof(CreateBooking), new { id = booking.Id }, booking);
-        }
-
-        // 2. Lấy danh sách tất cả đơn đặt phòng (Giữ nguyên của bạn)
-        [HttpGet]
-        public async Task<ActionResult<IEnumerable<Booking>>> GetAllBookings()
-        {
-            return await _context.Bookings.ToListAsync();
-        }
-
-        // Lấy lịch sử đặt phòng của một user
-        [HttpGet("user/{userId}")]
-        public async Task<ActionResult<IEnumerable<object>>> GetBookingsByUser(int userId)
-        {
-            var bookings = await _context.Bookings
-                .Include(b => b.RoomType)
-                .ThenInclude(rt => rt.Hotel)
-                .Where(b => b.UserId == userId)
-                .OrderByDescending(b => b.CheckInDate)
-                .Select(b => new {
-                    b.Id,
-                    b.GuestName,
-                    b.GuestPhone,
-                    b.RoomQuantity,
-                    b.CheckInDate,
-                    b.CheckOutDate,
-                    b.TotalPrice,
-                    b.Status,
-                    HotelName = b.RoomType.Hotel.Name,
-                    RoomTypeName = b.RoomType.Name
-                })
+            // Tìm và lấy ra danh sách các phòng vật lý đang trống và không bảo trì thuộc loại phòng này
+            var availableRooms = await _context.Rooms
+                .Where(r => r.RoomTypeId == dto.RoomTypeId && r.IsAvailable == true && r.IsMaintenance == false)
+                .Take(dto.RoomQuantity)
                 .ToListAsync();
 
-            return Ok(bookings);
+            // Nếu số lượng phòng trống thực tế ít hơn số lượng khách yêu cầu đặt
+            if (availableRooms.Count < dto.RoomQuantity)
+            {
+                return BadRequest(new { message = "Xin lỗi, loại phòng này hiện tại không đủ số lượng phòng trống để đáp ứng." });
+            }
+
+            // --- TIẾN HÀNH LẬP ĐƠN ĐẶT PHÒNG ---
+            var booking = new Booking
+            {
+                UserId = dto.UserId, // Nhận Id nếu đã đăng nhập, hoặc null nếu đặt phòng nhanh công khai
+                GuestName = dto.GuestName,
+                GuestPhone = dto.GuestPhone,
+                RoomTypeId = dto.RoomTypeId,
+                RoomQuantity = dto.RoomQuantity,
+                CheckInDate = dto.CheckInDate,
+                CheckOutDate = dto.CheckOutDate,
+                TotalPrice = dto.TotalPrice,
+                Status = "Pending" // Mặc định trạng thái ban đầu là Chờ duyệt
+            };
+
+            _context.Bookings.Add(booking);
+
+            // Cập nhật trạng thái của các phòng vật lý vừa được chọn sang bận (IsAvailable = false)
+            foreach (var room in availableRooms)
+            {
+                room.IsAvailable = false;
+            }
+
+            // Lưu toàn bộ thay đổi vào SQL Server
+            await _context.SaveChangesAsync();
+
+            // Trả về kết quả Ok kèm dữ liệu thành công (Tránh dùng CreatedAtAction để không bị lỗi định tuyến)
+            return Ok(booking);
         }
 
-        // Lấy danh sách đặt phòng của một khách sạn (Dành cho Quản lý)
+        // 2. Lấy danh sách đặt phòng của MỘT khách sạn (Có tìm kiếm, phân trang, lọc trạng thái)
         [HttpGet("hotel/{hotelId}")]
         public async Task<ActionResult> GetBookingsByHotel(
             int hotelId,
             [FromQuery] string? status,
             [FromQuery] string? searchName,
+            [FromQuery] string sortBy = "id",
+            [FromQuery] string sortOrder = "desc",
             [FromQuery] int page = 1,
-            [FromQuery] int pageSize = 10,
-            [FromQuery] string sortBy = "date",
-            [FromQuery] string sortOrder = "desc")
+            [FromQuery] int pageSize = 10)
         {
             var query = _context.Bookings
                 .Include(b => b.RoomType)
                 .Where(b => b.RoomType.HotelId == hotelId)
                 .AsQueryable();
 
-            // Lọc theo trạng thái
             if (!string.IsNullOrEmpty(status))
             {
                 query = query.Where(b => b.Status == status);
             }
 
-            // Tìm kiếm theo tên khách
             if (!string.IsNullOrEmpty(searchName))
             {
                 query = query.Where(b => b.GuestName.Contains(searchName));
             }
 
-            // Sắp xếp
-            if (sortBy.ToLower() == "date")
-            {
-                query = sortOrder.ToLower() == "asc" ? query.OrderBy(b => b.CheckInDate) : query.OrderByDescending(b => b.CheckInDate);
-            }
-            else if (sortBy.ToLower() == "price")
-            {
-                query = sortOrder.ToLower() == "asc" ? query.OrderBy(b => b.TotalPrice) : query.OrderByDescending(b => b.TotalPrice);
-            }
-
-            // Phân trang
             var totalItems = await query.CountAsync();
             var totalPages = (int)Math.Ceiling(totalItems / (double)pageSize);
+
+            if (sortBy.ToLower() == "id")
+            {
+                query = sortOrder.ToLower() == "asc" ? query.OrderBy(b => b.Id) : query.OrderByDescending(b => b.Id);
+            }
 
             var bookings = await query
                 .Skip((page - 1) * pageSize)
                 .Take(pageSize)
-                .Select(b => new {
-                    b.Id,
-                    b.GuestName,
-                    b.GuestPhone,
-                    b.RoomQuantity,
-                    b.CheckInDate,
-                    b.CheckOutDate,
-                    b.TotalPrice,
-                    b.Status,
-                    RoomTypeName = b.RoomType.Name
-                })
                 .ToListAsync();
 
-            return Ok(new {
+            return Ok(new
+            {
                 Data = bookings,
-                Pagination = new {
-                    TotalItems = totalItems,
-                    TotalPages = totalPages,
-                    CurrentPage = page,
-                    PageSize = pageSize
-                }
+                Pagination = new { TotalItems = totalItems, TotalPages = totalPages, CurrentPage = page, PageSize = pageSize }
             });
         }
 
-        // 3. API Cập nhật đơn đặt phòng (MỚI) - Xử lý đổi lịch hoặc Hủy đơn đổi trạng thái phòng
+        // 3. Lấy lịch sử đặt phòng của khách hàng dựa vào UserId
+        [HttpGet("user/{userId}")]
+        public async Task<ActionResult<IEnumerable<Booking>>> GetUserBookings(int userId)
+        {
+            return await _context.Bookings
+                .Include(b => b.RoomType)
+                .Where(b => b.UserId == userId)
+                .OrderByDescending(b => b.Id)
+                .ToListAsync();
+        }
+
+        // 4. Cập nhật trạng thái đơn đặt phòng (Duyệt/Nhận phòng/Hủy)
         [HttpPut("{id}")]
-        public async Task<IActionResult> UpdateBooking(int id, Booking bookingRequest)
+        public async Task<IActionResult> PutBooking(int id, [FromBody] UpdateBookingStatusDTO request)
         {
             var existingBooking = await _context.Bookings.FindAsync(id);
-            if (existingBooking == null)
-            {
-                return NotFound("Không tìm thấy đơn đặt phòng này để cập nhật.");
-            }
+            if (existingBooking == null) return NotFound("Không tìm thấy đơn đặt phòng.");
 
-            // Nếu trạng thái chuyển sang "Cancelled" (Hủy) hoặc "CheckedOut", giải phóng phòng
-            if ((bookingRequest.Status == "Cancelled" || bookingRequest.Status == "CheckedOut") && 
-                existingBooking.Status != "Cancelled" && existingBooking.Status != "CheckedOut")
+            existingBooking.Status = request.Status;
+
+            if (request.Status == "Cancelled")
             {
                 var roomToFree = await _context.Rooms
                     .FirstOrDefaultAsync(r => r.RoomTypeId == existingBooking.RoomTypeId && r.IsAvailable == false);
-                
-                if (roomToFree != null)
-                {
-                    roomToFree.IsAvailable = true; // Trả phòng về trạng thái trống
-                }
+                if (roomToFree != null) roomToFree.IsAvailable = true;
             }
-
-            // Cập nhật thông tin mới
-            if (bookingRequest.CheckInDate != default) existingBooking.CheckInDate = bookingRequest.CheckInDate;
-            if (bookingRequest.CheckOutDate != default) existingBooking.CheckOutDate = bookingRequest.CheckOutDate;
-            existingBooking.Status = bookingRequest.Status; 
 
             await _context.SaveChangesAsync();
             return Ok(existingBooking);
         }
 
-        // 4. API Xóa hẳn đơn đặt phòng (MỚI) - Giải phóng phòng lập tức
+        // 5. Xóa hẳn đơn đặt phòng
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteBooking(int id)
         {
             var booking = await _context.Bookings.FindAsync(id);
-            if (booking == null)
-            {
-                return NotFound("Không tìm thấy đơn đặt phòng này để xóa.");
-            }
+            if (booking == null) return NotFound("Không tìm thấy đơn đặt phòng.");
 
-            // Trước khi xóa đơn, kiểm tra xem phòng của loại này có đang bị giữ không để giải phóng
             if (booking.Status != "Cancelled" && booking.Status != "CheckedOut")
             {
                 var roomToFree = await _context.Rooms
                     .FirstOrDefaultAsync(r => r.RoomTypeId == booking.RoomTypeId && r.IsAvailable == false);
-                
-                if (roomToFree != null)
-                {
-                    roomToFree.IsAvailable = true; // Cho phép phòng trống trở lại
-                }
+                if (roomToFree != null) roomToFree.IsAvailable = true;
             }
 
             _context.Bookings.Remove(booking);
             await _context.SaveChangesAsync();
-
-            return Ok(new { message = $"Đã xóa thành công đơn đặt phòng và giải phóng phòng trống." });
+            return Ok(new { message = "Đã xóa thành công đơn đặt phòng." });
         }
+    }
+
+    public class UpdateBookingStatusDTO
+    {
+        public string Status { get; set; }
     }
 }

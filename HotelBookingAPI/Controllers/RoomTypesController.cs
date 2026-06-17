@@ -5,6 +5,19 @@ using HotelBookingAPI.Models;
 
 namespace HotelBookingAPI.Controllers
 {
+    // Lớp DTO nhận dữ liệu thuần từ Frontend gửi sang để tránh lỗi xác thực thực thể liên kết bị null
+    public class RoomTypeDTO
+    {
+        public string Name { get; set; }
+        public decimal Price { get; set; }
+        public string BedType { get; set; }
+        public string RoomView { get; set; }
+        public bool HasBathtub { get; set; }
+        public string Amenities { get; set; }
+        public string ImageUrl { get; set; }
+        public int HotelId { get; set; }
+    }
+
     [Route("api/[controller]")]
     [ApiController]
     public class RoomTypesController : ControllerBase
@@ -17,7 +30,6 @@ namespace HotelBookingAPI.Controllers
         }
 
         // 1. Lấy danh sách loại phòng của MỘT Khách sạn cụ thể
-        // GET: api/RoomTypes/hotel/1
         [HttpGet("hotel/{hotelId}")]
         public async Task<ActionResult<IEnumerable<RoomType>>> GetRoomTypesByHotel(int hotelId)
         {
@@ -26,58 +38,58 @@ namespace HotelBookingAPI.Controllers
                 .ToListAsync();
         }
 
-        // 2. Thêm một Loại phòng mới
-        // POST: api/RoomTypes
+        // 2. Thêm một Loại phòng mới (SỬA LỖI ĐỂ NHẬN DTO)
         [HttpPost]
-        public async Task<ActionResult<RoomType>> PostRoomType(RoomType roomType)
+        public async Task<ActionResult<RoomType>> PostRoomType([FromBody] RoomTypeDTO dto)
         {
-            // Kiểm tra xem khách sạn có tồn tại không
-            var hotelExists = await _context.Hotels.AnyAsync(h => h.Id == roomType.HotelId);
+            var hotelExists = await _context.Hotels.AnyAsync(h => h.Id == dto.HotelId);
             if (!hotelExists)
             {
                 return BadRequest("Không tìm thấy Khách sạn với Id này.");
             }
+
+            var roomType = new RoomType
+            {
+                HotelId = dto.HotelId,
+                Name = dto.Name,
+                Price = dto.Price,
+                BedType = dto.BedType,
+                RoomView = dto.RoomView,
+                HasBathtub = dto.HasBathtub,
+                Amenities = dto.Amenities,
+                ImageUrl = dto.ImageUrl ?? ""
+            };
 
             _context.RoomTypes.Add(roomType);
             await _context.SaveChangesAsync();
 
-            return CreatedAtAction("GetRoomTypesByHotel", new { hotelId = roomType.HotelId }, roomType);
+            return Ok(roomType);
         }
 
-        // 3. Cập nhật Loại phòng (MỚI) - Để Admin sửa giá, sửa tên, tiện ích...
-        // PUT: api/RoomTypes/5
+        // 3. Cập nhật Loại phòng
         [HttpPut("{id}")]
-        public async Task<IActionResult> UpdateRoomType(int id, RoomType roomTypeRequest)
+        public async Task<IActionResult> PutRoomType(int id, [FromBody] RoomTypeDTO dto)
         {
             var existingRoomType = await _context.RoomTypes.FindAsync(id);
-            if (existingRoomType == null)
-            {
-                return NotFound("Không tìm thấy Loại phòng này để cập nhật.");
-            }
+            if (existingRoomType == null) return NotFound("Không tìm thấy Loại phòng.");
 
-            // Kiểm tra xem Khách sạn (nếu có bị đổi nhầm) có tồn tại không
-            var hotelExists = await _context.Hotels.AnyAsync(h => h.Id == roomTypeRequest.HotelId);
-            if (!hotelExists)
-            {
-                return BadRequest("Không tìm thấy Khách sạn với Id này.");
-            }
+            var hotelExists = await _context.Hotels.AnyAsync(h => h.Id == dto.HotelId);
+            if (!hotelExists) return BadRequest("Không tìm thấy Khách sạn với Id này.");
 
-            // Ghi đè các thông tin mới
-            existingRoomType.Name = roomTypeRequest.Name;
-            existingRoomType.Price = roomTypeRequest.Price;
-            existingRoomType.BedType = roomTypeRequest.BedType;
-            existingRoomType.RoomView = roomTypeRequest.RoomView;
-            existingRoomType.HasBathtub = roomTypeRequest.HasBathtub;
-            existingRoomType.Amenities = roomTypeRequest.Amenities;
-            existingRoomType.ImageUrl = roomTypeRequest.ImageUrl;
-            existingRoomType.HotelId = roomTypeRequest.HotelId;
+            existingRoomType.Name = dto.Name;
+            existingRoomType.Price = dto.Price;
+            existingRoomType.BedType = dto.BedType;
+            existingRoomType.RoomView = dto.RoomView;
+            existingRoomType.HasBathtub = dto.HasBathtub;
+            existingRoomType.Amenities = dto.Amenities;
+            existingRoomType.ImageUrl = dto.ImageUrl ?? "";
+            existingRoomType.HotelId = dto.HotelId;
 
             await _context.SaveChangesAsync();
             return Ok(existingRoomType);
         }
 
-        // 4. Xóa Loại phòng (MỚI)
-        // DELETE: api/RoomTypes/5
+        // 4. Xóa Loại phòng
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteRoomType(int id)
         {
@@ -89,7 +101,7 @@ namespace HotelBookingAPI.Controllers
 
             _context.RoomTypes.Remove(roomType);
             await _context.SaveChangesAsync();
-            return Ok(new { message = $"Đã xóa thành công loại phòng: {roomType.Name}" });
+            return Ok(new { message = "Đã xóa thành công loại phòng." });
         }
     }
 }

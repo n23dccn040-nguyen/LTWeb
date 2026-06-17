@@ -37,12 +37,15 @@ export default function Search() {
     try {
       const params = new URLSearchParams();
       
-      // Add filters
-      Object.keys(filters).forEach((key) => {
-        if (filters[key]) params.append(key, filters[key]);
-      });
+      // Nạp bộ lọc
+      if (filters.city) params.append("city", filters.city);
+      if (filters.minPrice) params.append("minPrice", filters.minPrice);
+      if (filters.maxPrice) params.append("maxPrice", filters.maxPrice);
+      if (filters.roomType) params.append("roomType", filters.roomType);
+      if (filters.checkIn) params.append("checkIn", filters.checkIn);
+      if (filters.checkOut) params.append("checkOut", filters.checkOut);
       
-      // Add pagination & sorting
+      // Nạp phân trang và sắp xếp
       params.append("page", pagination.page);
       params.append("pageSize", pagination.pageSize);
       params.append("sortBy", sortOptions.sortBy);
@@ -59,33 +62,16 @@ export default function Search() {
         }));
       }
     } catch (error) {
-      console.error(error);
+      console.error("Lỗi khi tìm kiếm:", error);
     } finally {
       setLoading(false);
     }
   };
 
-  // Whenever URL params change (which includes pagination and sort), fetch again.
+  // Tự động tìm kiếm khi phân trang hoặc sắp xếp thay đổi
   useEffect(() => {
     fetchHotels();
-    // Update local state just in case we hit back button
-    setFilters({
-      city: searchParams.get("city") || "",
-      minPrice: searchParams.get("minPrice") || "",
-      maxPrice: searchParams.get("maxPrice") || "",
-      roomType: searchParams.get("roomType") || "",
-      checkIn: searchParams.get("checkIn") || "",
-      checkOut: searchParams.get("checkOut") || "",
-    });
-    setPagination(prev => ({
-      ...prev,
-      page: parseInt(searchParams.get("page")) || 1
-    }));
-    setSortOptions({
-      sortBy: searchParams.get("sortBy") || "name",
-      sortOrder: searchParams.get("sortOrder") || "asc",
-    });
-  }, [searchParams]);
+  }, [pagination.page, sortOptions.sortBy, sortOptions.sortOrder]);
 
   const handleInputChange = (e) => {
     setFilters({ ...filters, [e.target.name]: e.target.value });
@@ -93,22 +79,14 @@ export default function Search() {
 
   const handleSearch = (e) => {
     e.preventDefault();
-    updateSearchParams({ ...filters, page: 1, sortBy: sortOptions.sortBy, sortOrder: sortOptions.sortOrder });
-  };
-
-  const updateSearchParams = (newParamsObj) => {
-    const params = new URLSearchParams();
-    Object.keys(newParamsObj).forEach(key => {
-      if (newParamsObj[key]) {
-        params.append(key, newParamsObj[key]);
-      }
-    });
-    setSearchParams(params);
+    // Đưa về trang 1 và gọi API khi bấm nút Tìm kiếm
+    setPagination(prev => ({ ...prev, page: 1 }));
+    fetchHotels();
   };
 
   const handlePageChange = (newPage) => {
     if (newPage >= 1 && newPage <= pagination.totalPages) {
-      updateSearchParams({ ...filters, page: newPage, sortBy: sortOptions.sortBy, sortOrder: sortOptions.sortOrder });
+      setPagination(prev => ({ ...prev, page: newPage }));
     }
   };
 
@@ -122,7 +100,8 @@ export default function Search() {
     if (value === "city_asc") { newSortBy = "city"; newSortOrder = "asc"; }
     if (value === "city_desc") { newSortBy = "city"; newSortOrder = "desc"; }
 
-    updateSearchParams({ ...filters, page: 1, sortBy: newSortBy, sortOrder: newSortOrder });
+    setSortOptions({ sortBy: newSortBy, sortOrder: newSortOrder });
+    setPagination(prev => ({ ...prev, page: 1 }));
   };
 
   const goToDetail = (hotelId) => {

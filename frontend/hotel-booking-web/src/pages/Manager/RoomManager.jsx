@@ -23,6 +23,7 @@ export default function RoomManager() {
   const API_BASE_URL = "http://localhost:5154/api";
 
   const fetchRoomTypes = async () => {
+    setLoading(true);
     try {
       const response = await axios.get(`${API_BASE_URL}/RoomTypes/hotel/${hotelId}`);
       setRoomTypes(response.data || []);
@@ -33,197 +34,220 @@ export default function RoomManager() {
     }
   };
 
+  const fetchRooms = async (typeId) => {
+    try {
+      const response = await axios.get(`${API_BASE_URL}/Rooms/roomtype/${typeId}`);
+      setRooms(response.data || []);
+    } catch (error) {
+      console.error("Lỗi khi tải phòng vật lý:", error);
+    }
+  };
+
   useEffect(() => {
     fetchRoomTypes();
   }, [hotelId]);
 
-  const handleSelectRoomType = async (rt) => {
-    setSelectedRoomType(rt);
-    try {
-      const response = await axios.get(`${API_BASE_URL}/Rooms/roomtype/${rt.id}`);
-      setRooms(response.data || []);
-    } catch (error) {
-      console.error("Lỗi tải danh sách phòng:", error);
-    }
+  const handleSelectType = (type) => {
+    setSelectedRoomType(type);
+    setRoomForm({ ...roomForm, roomTypeId: type.id });
+    fetchRooms(type.id);
   };
 
-  // --- ROOM TYPE ACTIONS ---
-  const saveRoomType = async (e) => {
+  // Xử lý Lưu/Cập nhật loại phòng
+  const handleTypeSubmit = async (e) => {
     e.preventDefault();
     try {
+      const payload = {
+        name: typeForm.name,
+        price: Number(typeForm.price),
+        bedType: typeForm.bedType,
+        roomView: typeForm.roomView,
+        hasBathtub: Boolean(typeForm.hasBathtub),
+        amenities: typeForm.amenities,
+        imageUrl: typeForm.imageUrl || "",
+        hotelId: Number(hotelId)
+      };
+
       if (isEditingType) {
-        await axios.put(`${API_BASE_URL}/RoomTypes/${typeForm.id}`, typeForm);
+        await axios.put(`${API_BASE_URL}/RoomTypes/${typeForm.id}`, payload);
         alert("Cập nhật Loại phòng thành công!");
       } else {
-        await axios.post(`${API_BASE_URL}/RoomTypes`, typeForm);
-        alert("Thêm Loại phòng thành công!");
+        await axios.post(`${API_BASE_URL}/RoomTypes`, payload);
+        alert("Thêm Loại phòng mới thành công!");
       }
+
       setTypeForm({ id: null, name: "", price: "", bedType: "", roomView: "", hasBathtub: false, amenities: "", imageUrl: "", hotelId: Number(hotelId) });
       setIsEditingType(false);
       fetchRoomTypes();
+      setSelectedRoomType(null);
+      setRooms([]);
     } catch (error) {
+      console.error(error);
       alert("Có lỗi xảy ra khi lưu Loại phòng!");
     }
   };
 
-  const deleteRoomType = async (id) => {
-    if (window.confirm("Xóa loại phòng này sẽ ảnh hưởng tới các phòng và đơn đặt. Bạn có chắc chắn?")) {
+  const handleDeleteType = async (id) => {
+    if (window.confirm("Bạn có chắc chắn muốn xóa loại phòng này không?")) {
       try {
         await axios.delete(`${API_BASE_URL}/RoomTypes/${id}`);
+        alert("Xóa loại phòng thành công!");
         fetchRoomTypes();
-        if (selectedRoomType?.id === id) setSelectedRoomType(null);
+        setSelectedRoomType(null);
+        setRooms([]);
       } catch (error) {
-        alert("Lỗi khi xóa loại phòng!");
+        alert("Không thể xóa loại phòng này vì đang có phòng vật lý thuộc loại này.");
       }
     }
   };
 
-  // --- ROOM ACTIONS ---
-  const saveRoom = async (e) => {
+  // Xử lý Thêm/Sửa Phòng vật lý cụ thể (Ví dụ: 101, 102)
+  const handleRoomSubmit = async (e) => {
     e.preventDefault();
+    if (!selectedRoomType) {
+      alert("Vui lòng chọn một loại phòng trước!");
+      return;
+    }
     try {
-      const payload = { ...roomForm, roomTypeId: selectedRoomType.id };
+      const payload = {
+        id: roomForm.id ? Number(roomForm.id) : 0,
+        roomNumber: roomForm.roomNumber,
+        isMaintenance: Boolean(roomForm.isMaintenance),
+        isAvailable: Boolean(roomForm.isAvailable),
+        roomTypeId: Number(selectedRoomType.id)
+      };
+
       if (isEditingRoom) {
         await axios.put(`${API_BASE_URL}/Rooms/${roomForm.id}`, payload);
         alert("Cập nhật phòng thành công!");
       } else {
         await axios.post(`${API_BASE_URL}/Rooms`, payload);
-        alert("Thêm phòng thành công!");
+        alert("Thêm phòng vật lý thành công!");
       }
-      setRoomForm({ id: null, roomNumber: "", isMaintenance: false, isAvailable: true, roomTypeId: null });
+
+      setRoomForm({ id: null, roomNumber: "", isMaintenance: false, isAvailable: true, roomTypeId: selectedRoomType.id });
       setIsEditingRoom(false);
-      handleSelectRoomType(selectedRoomType); // reload rooms
+      fetchRooms(selectedRoomType.id);
     } catch (error) {
-      alert("Có lỗi xảy ra khi lưu phòng!");
+      console.error(error);
+      alert("Lỗi khi lưu thông tin phòng vật lý!");
     }
   };
 
   const deleteRoom = async (id) => {
-    if (window.confirm("Xóa phòng này?")) {
+    if (window.confirm("Bạn có chắc muốn xóa phòng này không?")) {
       try {
         await axios.delete(`${API_BASE_URL}/Rooms/${id}`);
-        handleSelectRoomType(selectedRoomType);
+        alert("Xóa phòng thành công!");
+        fetchRooms(selectedRoomType.id);
       } catch (error) {
-        alert("Lỗi khi xóa phòng!");
+        alert("Lỗi khi xóa phòng.");
       }
     }
   };
 
-  const toggleRoomStatus = async (room) => {
-    try {
-      await axios.put(`${API_BASE_URL}/Rooms/${room.id}/status`, !room.isAvailable, {
-        headers: { 'Content-Type': 'application/json' }
-      });
-      handleSelectRoomType(selectedRoomType);
-    } catch (error) {
-      alert("Lỗi khi cập nhật trạng thái phòng!");
-    }
-  };
-
-  if (loading) return <div style={{ textAlign: "center", padding: "40px" }}>Đang tải...</div>;
-
   return (
     <div style={{ padding: '40px 20px', maxWidth: '1200px', margin: '0 auto' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px' }}>
-        <h1>Quản lý Loại phòng & Phòng (Hotel ID: {hotelId})</h1>
+        <h1 style={{ color: 'var(--neon-blue, #00a8ff)' }}>🚪 Quản lý Phòng & Loại Phòng</h1>
         <Link to="/manager/dashboard" style={{ padding: '8px 15px', background: '#ccc', borderRadius: '5px', textDecoration: 'none', color: '#333' }}>
           ⬅ Quay lại Dashboard
         </Link>
       </div>
 
-      <div style={{ display: 'flex', gap: '30px', flexWrap: 'wrap' }}>
-        
-        {/* CỘT TRÁI: DANH SÁCH LOẠI PHÒNG */}
-        <div style={{ flex: '1', minWidth: '350px' }}>
-          <h2>1. Loại phòng (Room Types)</h2>
-          
-          <div style={{ background: '#f5f7fa', padding: '20px', borderRadius: '10px', marginBottom: '20px' }}>
-            <h3>{isEditingType ? "Sửa loại phòng" : "Thêm loại phòng mới"}</h3>
-            <form onSubmit={saveRoomType} style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              <input required type="text" placeholder="Tên loại (VD: Deluxe)" value={typeForm.name} onChange={e => setTypeForm({...typeForm, name: e.target.value})} style={{ padding: '8px', borderRadius: '5px', border: '1px solid #ccc' }} />
-              <input required type="number" placeholder="Giá (VNĐ)" value={typeForm.price} onChange={e => setTypeForm({...typeForm, price: e.target.value})} style={{ padding: '8px', borderRadius: '5px', border: '1px solid #ccc' }} />
-              <input type="text" placeholder="Loại giường (VD: 1 giường đôi)" value={typeForm.bedType} onChange={e => setTypeForm({...typeForm, bedType: e.target.value})} style={{ padding: '8px', borderRadius: '5px', border: '1px solid #ccc' }} />
-              <input type="text" placeholder="Hướng nhìn" value={typeForm.roomView} onChange={e => setTypeForm({...typeForm, roomView: e.target.value})} style={{ padding: '8px', borderRadius: '5px', border: '1px solid #ccc' }} />
-              <label><input type="checkbox" checked={typeForm.hasBathtub} onChange={e => setTypeForm({...typeForm, hasBathtub: e.target.checked})} /> Có bồn tắm</label>
-              <textarea placeholder="Tiện ích (phẩy cách)" value={typeForm.amenities} onChange={e => setTypeForm({...typeForm, amenities: e.target.value})} style={{ padding: '8px', borderRadius: '5px', border: '1px solid #ccc' }} />
-              <input type="text" placeholder="URL Hình ảnh" value={typeForm.imageUrl} onChange={e => setTypeForm({...typeForm, imageUrl: e.target.value})} style={{ padding: '8px', borderRadius: '5px', border: '1px solid #ccc' }} />
-              <div style={{ display: 'flex', gap: '10px' }}>
-                <button type="submit" style={{ padding: '8px', background: 'var(--neon-blue)', color: 'white', border: 'none', borderRadius: '5px', flex: 1, cursor: 'pointer' }}>{isEditingType ? "Lưu" : "Thêm"}</button>
-                {isEditingType && <button type="button" onClick={() => { setIsEditingType(false); setTypeForm({ id: null, name: "", price: "", bedType: "", roomView: "", hasBathtub: false, amenities: "", imageUrl: "", hotelId: Number(hotelId) }); }} style={{ padding: '8px', background: '#ccc', border: 'none', borderRadius: '5px', cursor: 'pointer' }}>Hủy</button>}
-              </div>
-            </form>
-          </div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '30px' }}>
+        {/* PHẦN 1: QUẢN LÝ LOẠI PHÒNG */}
+        <div>
+          <h2 style={{ borderBottom: '2px solid #eee', paddingBottom: '10px' }}>
+            {isEditingType ? "✏ Sửa Loại Phòng" : "➕ Thêm Loại Phòng Mới"}
+          </h2>
+          <form onSubmit={handleTypeSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '12px', background: '#fff', padding: '20px', borderRadius: '8px', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
+            <input type="text" placeholder="Tên loại phòng (VD: Deluxe, Standard)" required value={typeForm.name} onChange={e => setTypeForm({ ...typeForm, name: e.target.value })} style={{ padding: '8px', borderRadius: '5px', border: '1px solid #ccc' }} />
+            <input type="number" placeholder="Giá tiền trên đêm (VNĐ)" required value={typeForm.price} onChange={e => setTypeForm({ ...typeForm, price: e.target.value })} style={{ padding: '8px', borderRadius: '5px', border: '1px solid #ccc' }} />
+            <input type="text" placeholder="Loại giường" value={typeForm.bedType} onChange={e => setTypeForm({ ...typeForm, bedType: e.target.value })} style={{ padding: '8px', borderRadius: '5px', border: '1px solid #ccc' }} />
+            <input type="text" placeholder="Hướng nhìn phòng" value={typeForm.roomView} onChange={e => setTypeForm({ ...typeForm, roomView: e.target.value })} style={{ padding: '8px', borderRadius: '5px', border: '1px solid #ccc' }} />
+            <input type="text" placeholder="Tiện ích phòng" value={typeForm.amenities} onChange={e => setTypeForm({ ...typeForm, amenities: e.target.value })} style={{ padding: '8px', borderRadius: '5px', border: '1px solid #ccc' }} />
+            <input type="text" placeholder="Đường dẫn ảnh phòng (URL)" value={typeForm.imageUrl} onChange={e => setTypeForm({ ...typeForm, imageUrl: e.target.value })} style={{ padding: '8px', borderRadius: '5px', border: '1px solid #ccc' }} />
+            
+            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+              <input type="checkbox" checked={typeForm.hasBathtub} onChange={e => setTypeForm({ ...typeForm, hasBathtub: e.target.checked })} />
+              Có bồn tắm nằm
+            </label>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-            {roomTypes.map(rt => (
-              <div key={rt.id} style={{ border: '1px solid #eee', padding: '15px', borderRadius: '10px', boxShadow: selectedRoomType?.id === rt.id ? '0 0 10px rgba(52, 152, 219, 0.5)' : 'none', borderLeft: selectedRoomType?.id === rt.id ? '4px solid var(--neon-blue)' : '1px solid #eee' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <h3 style={{ margin: '0 0 10px 0' }}>{rt.name}</h3>
-                  <strong style={{ color: 'var(--neon-blue)' }}>{rt.price.toLocaleString()}đ</strong>
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button type="submit" style={{ padding: '10px 20px', background: '#27ae60', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer', fontWeight: 'bold', flex: 1 }}>
+                {isEditingType ? "Cập nhật" : "Lưu loại phòng"}
+              </button>
+            </div>
+          </form>
+
+          <h3 style={{ marginTop: '30px' }}>Danh sách Loại phòng hiện có:</h3>
+          {loading ? <p>Đang tải dữ liệu...</p> : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              {roomTypes.map(rt => (
+                <div key={rt.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '15px', background: selectedRoomType?.id === rt.id ? '#e0f2fe' : '#fff', border: '1px solid #ddd', borderRadius: '8px' }}>
+                  <div onClick={() => handleSelectType(rt)} style={{ cursor: 'pointer', flex: 1 }}>
+                    <strong style={{ fontSize: '16px', color: '#333' }}>{rt.name}</strong>
+                    <p style={{ margin: '5px 0 0 0', color: '#00a8ff', fontWeight: 'bold' }}>{rt.price?.toLocaleString()} VNĐ/đêm</p>
+                  </div>
+                  <div style={{ display: 'flex', gap: '5px' }}>
+                    <button onClick={() => { setIsEditingType(true); setTypeForm(rt); }} style={{ padding: '5px 10px', background: '#f39c12', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>Sửa</button>
+                    <button onClick={() => handleDeleteType(rt.id)} style={{ padding: '5px 10px', background: '#e74c3c', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>Xóa</button>
+                  </div>
                 </div>
-                <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
-                  <button onClick={() => handleSelectRoomType(rt)} style={{ padding: '5px 10px', background: '#2ecc71', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer', flex: 1 }}>Phòng</button>
-                  <button onClick={() => { setIsEditingType(true); setTypeForm(rt); }} style={{ padding: '5px 10px', background: '#f39c12', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer' }}>Sửa</button>
-                  <button onClick={() => deleteRoomType(rt.id)} style={{ padding: '5px 10px', background: '#e74c3c', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer' }}>Xóa</button>
-                </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
 
-        {/* CỘT PHẢI: DANH SÁCH PHÒNG THEO LOẠI */}
-        {selectedRoomType && (
-          <div style={{ flex: '2', minWidth: '400px' }}>
-            <h2>2. Quản lý phòng: {selectedRoomType.name}</h2>
+        {/* PHẦN 2: QUẢN LÝ PHÒNG VẬT LÝ CỤ THỂ */}
+        <div>
+          <h2 style={{ borderBottom: '2px solid #eee', paddingBottom: '10px' }}>
+            {selectedRoomType ? `🔢 Xếp phòng cho loại: ${selectedRoomType.name}` : "🔢 Quản lý số phòng vật lý"}
+          </h2>
 
-            <div style={{ background: '#f5f7fa', padding: '15px', borderRadius: '10px', marginBottom: '20px' }}>
-              <form onSubmit={saveRoom} style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                <input required type="text" placeholder="Số phòng (VD: 101)" value={roomForm.roomNumber} onChange={e => setRoomForm({...roomForm, roomNumber: e.target.value})} style={{ padding: '8px', borderRadius: '5px', border: '1px solid #ccc', flex: 1 }} />
-                <label><input type="checkbox" checked={roomForm.isMaintenance} onChange={e => setRoomForm({...roomForm, isMaintenance: e.target.checked})} /> Bảo trì</label>
-                <button type="submit" style={{ padding: '8px 15px', background: 'var(--neon-blue)', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer' }}>{isEditingRoom ? "Lưu" : "Thêm"}</button>
-                {isEditingRoom && <button type="button" onClick={() => { setIsEditingRoom(false); setRoomForm({ id: null, roomNumber: "", isMaintenance: false, isAvailable: true, roomTypeId: null }); }} style={{ padding: '8px 15px', background: '#ccc', border: 'none', borderRadius: '5px', cursor: 'pointer' }}>Hủy</button>}
-              </form>
+          {!selectedRoomType ? (
+            <div style={{ padding: '30px', background: '#f9f9f9', borderRadius: '8px', textAlign: 'center', border: '1px dashed #ccc', color: '#666' }}>
+              💡 Hãy nhấn chuột chọn một <strong>Loại phòng</strong> ở danh sách bên dưới trước để mở bảng thêm số phòng cụ thể (Ví dụ: phòng 101, 102...).
             </div>
+          ) : (
+            <>
+              <form onSubmit={handleRoomSubmit} style={{ display: 'flex', gap: '10px', background: '#fff', padding: '20px', borderRadius: '8px', boxShadow: '0 2px 4px rgba(0,0,0,0.05)', marginBottom: '20px' }}>
+                <input type="text" placeholder="Số phòng (VD: 101, 102)" required value={roomForm.roomNumber} onChange={e => setRoomForm({ ...roomForm, roomNumber: e.target.value })} style={{ padding: '8px', borderRadius: '5px', border: '1px solid #ccc', flex: 1 }} />
+                <button type="submit" style={{ padding: '8px 15px', background: 'var(--neon-blue, #00a8ff)', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer', fontWeight: 'bold' }}>
+                  Thêm phòng
+                </button>
+              </form>
 
-            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', background: 'white', boxShadow: '0 2px 5px rgba(0,0,0,0.05)' }}>
-              <thead>
-                <tr style={{ background: '#eee' }}>
-                  <th style={{ padding: '10px', borderBottom: '2px solid #ddd' }}>Số phòng</th>
-                  <th style={{ padding: '10px', borderBottom: '2px solid #ddd' }}>Trạng thái Bận/Trống</th>
-                  <th style={{ padding: '10px', borderBottom: '2px solid #ddd' }}>Bảo trì</th>
-                  <th style={{ padding: '10px', borderBottom: '2px solid #ddd' }}>Thao tác</th>
-                </tr>
-              </thead>
-              <tbody>
-                {rooms.length > 0 ? rooms.map(room => (
-                  <tr key={room.id} style={{ borderBottom: '1px solid #eee' }}>
-                    <td style={{ padding: '10px', fontWeight: 'bold' }}>{room.roomNumber}</td>
-                    <td style={{ padding: '10px' }}>
-                      <button 
-                        onClick={() => toggleRoomStatus(room)}
-                        style={{ 
-                          padding: '5px 10px', borderRadius: '15px', border: 'none', color: 'white', cursor: 'pointer',
-                          background: room.isAvailable ? '#27ae60' : '#e74c3c'
-                        }}
-                      >
-                        {room.isAvailable ? '✔ Trống' : '❌ Có khách'}
-                      </button>
-                    </td>
-                    <td style={{ padding: '10px' }}>
-                      {room.isMaintenance ? <span style={{ color: '#f39c12', fontWeight: 'bold' }}>Đang bảo trì</span> : 'Hoạt động'}
-                    </td>
-                    <td style={{ padding: '10px', display: 'flex', gap: '5px' }}>
-                      <button onClick={() => { setIsEditingRoom(true); setRoomForm(room); }} style={{ padding: '5px', background: '#f39c12', color: 'white', border: 'none', borderRadius: '3px', cursor: 'pointer' }}>Sửa</button>
-                      <button onClick={() => deleteRoom(room.id)} style={{ padding: '5px', background: '#e74c3c', color: 'white', border: 'none', borderRadius: '3px', cursor: 'pointer' }}>Xóa</button>
-                    </td>
+              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', background: 'white', borderRadius: '8px', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
+                <thead>
+                  <tr style={{ background: '#f1f5f9' }}>
+                    <th style={{ padding: '10px' }}>Số Phòng</th>
+                    <th style={{ padding: '10px' }}>Trạng thái</th>
+                    <th style={{ padding: '10px' }}>Thao tác</th>
                   </tr>
-                )) : (
-                  <tr><td colSpan="4" style={{ textAlign: 'center', padding: '20px' }}>Chưa có phòng nào thuộc loại này.</td></tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        )}
+                </thead>
+                <tbody>
+                  {rooms.length > 0 ? rooms.map(room => (
+                    <tr key={room.id} style={{ borderBottom: '1px solid #eee' }}>
+                      <td style={{ padding: '10px', fontWeight: 'bold' }}>Phòng {room.roomNumber}</td>
+                      <td style={{ padding: '10px' }}>
+                        <span style={{ padding: '4px 10px', borderRadius: '15px', color: 'white', fontSize: '12px', background: room.isAvailable ? '#27ae60' : '#e74c3c' }}>
+                          {room.isAvailable ? 'Trống' : 'Có khách'}
+                        </span>
+                      </td>
+                      <td style={{ padding: '10px' }}>
+                        <button onClick={() => deleteRoom(room.id)} style={{ padding: '3px 8px', background: '#e74c3c', color: 'white', border: 'none', borderRadius: '3px', cursor: 'pointer', fontSize: '12px' }}>Xóa</button>
+                      </td>
+                    </tr>
+                  )) : (
+                    <tr><td colSpan="3" style={{ textAlign: 'center', padding: '20px', color: '#888' }}>Loại phòng này chưa có phòng vật lý nào. Hãy gõ số phòng để thêm ở trên!</td></tr>
+                  )}
+                </tbody>
+              </table>
+            </>
+          )}
+        </div>
       </div>
     </div>
   );

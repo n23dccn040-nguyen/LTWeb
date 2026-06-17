@@ -1,25 +1,27 @@
 {
   "format": 1,
   "restore": {
-    "f:\\Đồ án LTWeb\\HotelBookingAPI\\HotelBookingAPI.csproj": {}
+    "C:\\Users\\adminn\\Documents\\Do-an-LTWeb\\HotelBookingAPI\\HotelBookingAPI.csproj": {}
   },
   "projects": {
-    "f:\\Đồ án LTWeb\\HotelBookingAPI\\HotelBookingAPI.csproj": {
+    "C:\\Users\\adminn\\Documents\\Do-an-LTWeb\\HotelBookingAPI\\HotelBookingAPI.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "f:\\Đồ án LTWeb\\HotelBookingAPI\\HotelBookingAPI.csproj",
+        "projectUniqueName": "C:\\Users\\adminn\\Documents\\Do-an-LTWeb\\HotelBookingAPI\\HotelBookingAPI.csproj",
         "projectName": "HotelBookingAPI",
-        "projectPath": "f:\\Đồ án LTWeb\\HotelBookingAPI\\HotelBookingAPI.csproj",
-        "packagesPath": "C:\\Users\\TRAN HUU\\.nuget\\packages\\",
-        "outputPath": "f:\\Đồ án LTWeb\\HotelBookingAPI\\obj\\",
+        "projectPath": "C:\\Users\\adminn\\Documents\\Do-an-LTWeb\\HotelBookingAPI\\HotelBookingAPI.csproj",
+        "packagesPath": "C:\\Users\\adminn\\.nuget\\packages\\",
+        "outputPath": "C:\\Users\\adminn\\Documents\\Do-an-LTWeb\\HotelBookingAPI\\obj\\",
         "projectStyle": "PackageReference",
         "configFilePaths": [
-          "C:\\Users\\TRAN HUU\\AppData\\Roaming\\NuGet\\NuGet.Config"
+          "C:\\Users\\adminn\\AppData\\Roaming\\NuGet\\NuGet.Config",
+          "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
         ],
         "originalTargetFrameworks": [
           "net10.0"
         ],
         "sources": {
+          "C:\\Program Files (x86)\\Microsoft SDKs\\NuGetPackages\\": {},
           "https://api.nuget.org/v3/index.json": {}
         },
         "frameworks": {

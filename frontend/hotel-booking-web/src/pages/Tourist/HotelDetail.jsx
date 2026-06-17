@@ -59,34 +59,57 @@ export default function HotelDetail() {
 
   const handleBookingSubmit = async (e) => {
     e.preventDefault();
+    
+    // 1. Kiểm tra ngày tháng
     if (!bookingForm.checkInDate || !bookingForm.checkOutDate) {
       alert("Vui lòng chọn ngày nhận và trả phòng!");
       return;
     }
 
-    const token = localStorage.getItem("token");
+    const checkIn = new Date(bookingForm.checkInDate);
+    const checkOut = new Date(bookingForm.checkOutDate);
+    
+    // Tính số đêm lưu trú
+    const timeDifference = checkOut.getTime() - checkIn.getTime();
+    const numberOfNights = Math.ceil(timeDifference / (1000 * 3600 * 24));
+
+    if (numberOfNights <= 0) {
+      alert("Ngày trả phòng phải sau ngày nhận phòng!");
+      return;
+    }
+
+    // 2. Lấy ID user nếu đã đăng nhập (Nếu là khách vãng lai đặt nhanh thì userId = null)
     let userId = null;
-    if (localStorage.getItem("user")) {
-        userId = JSON.parse(localStorage.getItem("user")).id;
+    const storedUser = localStorage.getItem("user");
+    if (storedUser) {
+        userId = JSON.parse(storedUser).id;
     }
 
     try {
+      // 3. Tính chuẩn Tổng Tiền = Giá 1 đêm * Số lượng phòng * Số đêm
+      const finalTotalPrice = selectedRoom.price * Number(bookingForm.roomQuantity) * numberOfNights;
+
       const bookingData = {
-        userId: userId, // associate with user if logged in
+        userId: userId,
         guestName: bookingForm.guestName,
         guestPhone: bookingForm.guestPhone,
         roomTypeId: selectedRoom.id,
         roomQuantity: Number(bookingForm.roomQuantity),
         checkInDate: bookingForm.checkInDate,
         checkOutDate: bookingForm.checkOutDate,
-        totalPrice: selectedRoom.price * Number(bookingForm.roomQuantity),
+        totalPrice: finalTotalPrice, 
+        status: "Pending" // Mặc định là chờ duyệt
       };
       
+      const token = localStorage.getItem("token");
       const config = token ? { headers: { Authorization: `Bearer ${token}` } } : {};
+      
+      // 4. Gọi API Đặt phòng
       await axios.post(`${API_BASE_URL}/Bookings`, bookingData, config);
       
-      alert("Đặt phòng thành công!");
-      closeBookingModal();
+      alert(`🎉 Đặt phòng thành công!\n- Số đêm: ${numberOfNights}\n- Tổng tiền: ${finalTotalPrice.toLocaleString()} VNĐ`);
+      setIsModalOpen(false); // Đóng modal
+      
     } catch (error) {
       console.error(error);
       alert("Lỗi khi đặt phòng! Vui lòng thử lại.");

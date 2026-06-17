@@ -45,18 +45,19 @@ export default function Profile() {
   };
 
   const handleCancelBooking = async (bookingId) => {
-    if (window.confirm("Bạn có chắc chắn muốn hủy đơn đặt phòng này?")) {
+    if (window.confirm("Bạn có chắc chắn muốn hủy đơn đặt phòng này không?")) {
       try {
+        // Cập nhật trạng thái thành Cancelled
         await axios.put(`${API_BASE_URL}/Bookings/${bookingId}`, { status: "Cancelled" });
-        alert("Hủy đặt phòng thành công!");
-        setBookings(bookings.map(b => b.id === bookingId ? { ...b, status: "Cancelled" } : b));
+        alert("Đã hủy đơn đặt phòng.");
+        // Reload lại danh sách
+        setBookings(bookings.map(b => b.id === bookingId ? { ...b, status: 'Cancelled' } : b));
       } catch (error) {
-        console.error("Lỗi khi hủy đặt phòng:", error);
-        alert("Có lỗi xảy ra khi hủy.");
+        console.error("Lỗi khi hủy phòng:", error);
+        alert("Không thể hủy phòng lúc này.");
       }
     }
   };
-
   if (loading) {
     return <div style={{ textAlign: "center", padding: "40px" }}>Đang tải thông tin...</div>;
   }

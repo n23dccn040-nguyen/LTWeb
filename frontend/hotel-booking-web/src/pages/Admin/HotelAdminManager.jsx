@@ -54,8 +54,13 @@ export default function HotelAdminManager() {
   const saveHotel = async (e) => {
     e.preventDefault();
     try {
+      // SỬA Ở ĐÂY: Gán id: 0 thay vì null để Backend (int) hiểu được đây là thêm mới
       const payload = { 
-        ...hotelForm, 
+        id: hotelForm.id ? Number(hotelForm.id) : 0, 
+        name: hotelForm.name,
+        city: hotelForm.city,
+        address: hotelForm.address,
+        description: hotelForm.description,
         managerId: hotelForm.managerId ? Number(hotelForm.managerId) : null 
       };
 
@@ -70,6 +75,7 @@ export default function HotelAdminManager() {
       setIsEditing(false);
       fetchHotels();
     } catch (error) {
+      console.error(error);
       alert("Có lỗi xảy ra khi lưu Khách sạn!");
     }
   };

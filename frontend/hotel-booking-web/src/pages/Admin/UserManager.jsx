@@ -46,10 +46,15 @@ export default function UserManager() {
     fetchUsers();
   };
 
+  // Cập nhật quyền (Role)
   const handleRoleChange = async (userId, newRole) => {
     try {
       const user = users.find(u => u.id === userId);
-      await axios.put(`${API_BASE_URL}/Users/${userId}`, { ...user, role: newRole });
+      // Chỉ gửi cấu trúc DTO gồm role và isActive lên Backend để không bị bắt lỗi mật khẩu
+      await axios.put(`${API_BASE_URL}/Users/${userId}`, { 
+        role: newRole, 
+        isActive: user.isActive 
+      });
       alert("Cập nhật quyền thành công!");
       fetchUsers();
     } catch (error) {
@@ -57,11 +62,17 @@ export default function UserManager() {
     }
   };
 
+  // Khóa hoặc mở khóa tài khoản (Fix lỗi payload)
   const handleToggleActive = async (userId, currentStatus) => {
     if (window.confirm(`Bạn có chắc muốn ${currentStatus ? 'khóa' : 'mở khóa'} tài khoản này?`)) {
       try {
         const user = users.find(u => u.id === userId);
-        await axios.put(`${API_BASE_URL}/Users/${userId}`, { ...user, isActive: !currentStatus });
+        // Chỉ gửi cấu trúc DTO gồm role và isActive lên Backend
+        await axios.put(`${API_BASE_URL}/Users/${userId}`, { 
+          role: user.role, 
+          isActive: !currentStatus 
+        });
+        alert("Cập nhật trạng thái tài khoản thành công!");
         fetchUsers();
       } catch (error) {
         alert("Lỗi khi cập nhật trạng thái tài khoản.");
@@ -69,9 +80,26 @@ export default function UserManager() {
     }
   };
 
+  // Hàm thực hiện xóa hẳn tài khoản người dùng
+  const handleDeleteUser = async (userId) => {
+    if (window.confirm("Hành động này không thể hoàn tác! Bạn có chắc chắn muốn XÓA HẲN tài khoản này ra khỏi hệ thống không?")) {
+      try {
+        await axios.delete(`${API_BASE_URL}/Users/${userId}`);
+        alert("Xóa tài khoản thành công!");
+        fetchUsers();
+      } catch (error) {
+        if (error.response && error.response.data && error.response.data.message) {
+          alert(error.response.data.message);
+        } else {
+          alert("Lỗi khi xóa người dùng.");
+        }
+      }
+    }
+  };
+
   return (
     <div style={{ padding: '40px 20px', maxWidth: '1200px', margin: '0 auto' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px' }}>
+      <div style={{ display: 'flex', justifycontent: 'space-between', alignItems: 'center', marginBottom: '30px' }}>
         <h1 style={{ color: '#e74c3c' }}>Quản lý Người Dùng</h1>
         <Link to="/admin/dashboard" style={{ padding: '8px 15px', background: '#ccc', borderRadius: '5px', textDecoration: 'none', color: '#333' }}>
           ⬅ Quay lại Dashboard
@@ -131,12 +159,18 @@ export default function UserManager() {
                       {u.isActive ? 'Hoạt động' : 'Đã khóa'}
                     </span>
                   </td>
-                  <td style={{ padding: '12px' }}>
+                  <td style={{ padding: '12px', display: 'flex', gap: '5px' }}>
                     <button 
                       onClick={() => handleToggleActive(u.id, u.isActive)}
                       style={{ padding: '5px 10px', background: u.isActive ? '#e74c3c' : '#27ae60', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer' }}
                     >
                       {u.isActive ? 'Khóa TK' : 'Mở khóa'}
+                    </button>
+                    <button 
+                      onClick={() => handleDeleteUser(u.id)}
+                      style={{ padding: '5px 10px', background: '#7f8c8d', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer' }}
+                    >
+                      Xóa
                     </button>
                   </td>
                 </tr>
@@ -147,7 +181,7 @@ export default function UserManager() {
           </table>
 
           {pagination.totalPages > 1 && (
-            <div style={{ display: 'flex', justifyContent: 'center', gap: '10px', marginTop: '30px' }}>
+            <div style={{ display: 'flex', justifycontent: 'center', gap: '10px', marginTop: '30px' }}>
               <button 
                 onClick={() => setPagination({...pagination, page: pagination.page - 1})}
                 disabled={pagination.page === 1}
