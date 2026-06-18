@@ -21,6 +21,24 @@ export default function RoomManager() {
     id: null, roomNumber: "", isMaintenance: false, isAvailable: true, roomTypeId: null
   });
 
+  // State cho quản lý trạng thái phòng theo ngày
+  const [showAvailabilityManager, setShowAvailabilityManager] = useState(false);
+  const [selectedRoom, setSelectedRoom] = useState(null);
+  const [availabilityDateRange, setAvailabilityDateRange] = useState({
+    startDate: new Date().toISOString().split('T')[0],
+    endDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+  });
+  const [availabilityData, setAvailabilityData] = useState([]);
+
+  // State cho thống kê phòng
+  const [showStatistics, setShowStatistics] = useState(false);
+  const [statsDateRange, setStatsDateRange] = useState({
+    startDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+    endDate: new Date().toISOString().split('T')[0]
+  });
+  const [roomStats, setRoomStats] = useState([]);
+  const [statsLoading, setStatsLoading] = useState(false);
+
   const API_BASE_URL = "http://localhost:5154/api";
 
   const fetchRoomTypes = async () => {
@@ -41,6 +59,37 @@ export default function RoomManager() {
       setRooms(response.data || []);
     } catch (error) {
       console.error("Lỗi khi tải phòng vật lý:", error);
+    }
+  };
+
+  const fetchRoomAvailability = async (roomId) => {
+    try {
+      const response = await axios.get(`${API_BASE_URL}/Rooms/${roomId}/availability`, {
+        params: {
+          startDate: availabilityDateRange.startDate,
+          endDate: availabilityDateRange.endDate
+        }
+      });
+      setAvailabilityData(response.data.availabilities || []);
+    } catch (error) {
+      console.error("Lỗi khi tải trạng thái phòng:", error);
+    }
+  };
+
+  const fetchRoomStatistics = async () => {
+    setStatsLoading(true);
+    try {
+      const response = await axios.get(`${API_BASE_URL}/Rooms/hotel/${hotelId}/statistics`, {
+        params: {
+          startDate: statsDateRange.startDate,
+          endDate: statsDateRange.endDate
+        }
+      });
+      setRoomStats(response.data.roomStatistics || []);
+    } catch (error) {
+      console.error("Lỗi khi tải thống kê phòng:", error);
+    } finally {
+      setStatsLoading(false);
     }
   };
 
@@ -113,10 +162,10 @@ export default function RoomManager() {
       showCancelButton: true,
       confirmButtonColor: '#e74c3c', // Màu đỏ cho nút Xóa
       cancelButtonColor: '#95a5a6',  // Màu xám cho nút Hủy
-      confirmButtonText: 'Vâng, Xóa đi!',
-      cancelButtonText: 'Hủy'
+      confirmButtonText: 'Xác nhận xóa',
+      cancelButtonText: 'Hủy bỏ'
     }).then(async (result) => {
-      // 2. Nếu người dùng bấm nút "Vâng, Xóa đi!"
+      // 2. Nếu người dùng bấm nút " Xóa "
       if (result.isConfirmed) {
         try {
           await axios.delete(`${API_BASE_URL}/RoomTypes/${id}`);
@@ -206,13 +255,93 @@ export default function RoomManager() {
     }
   };
 
+  // Xử lý cập nhật trạng thái bảo trì
+  const handleToggleMaintenance = async (roomId, currentStatus) => {
+    try {
+      await axios.put(`${API_BASE_URL}/Rooms/${roomId}/maintenance`, !currentStatus);
+      Swal.fire({
+        icon: 'success',
+        title: 'Thành công!',
+        text: 'Trạng thái bảo trì đã được cập nhật.',
+        timer: 1500,
+        showConfirmButton: false
+      });
+      fetchRooms(selectedRoomType.id);
+    } catch (error) {
+      Swal.fire({
+        icon: 'error',
+        title: 'Lỗi!',
+        text: 'Không thể cập nhật trạng thái bảo trì.'
+      });
+    }
+  };
+
+  // Xử lý lịch trạng thái phòng theo ngày
+  const handleOpenAvailabilityManager = (room) => {
+    setSelectedRoom(room);
+    setShowAvailabilityManager(true);
+    setAvailabilityDateRange({
+      startDate: new Date().toISOString().split('T')[0],
+      endDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+    });
+    fetchRoomAvailability(room.id);
+  };
+
+  const handleUpdateAvailability = async () => {
+    if (!selectedRoom) return;
+
+    try {
+      const updatedAvailabilities = availabilityData.map(a => ({
+        date: a.date,
+        isAvailable: a.isAvailable,
+        notes: a.notes
+      }));
+
+      await axios.post(`${API_BASE_URL}/Rooms/${selectedRoom.id}/availability`, updatedAvailabilities);
+      Swal.fire({
+        icon: 'success',
+        title: 'Thành công!',
+        text: 'Trạng thái phòng đã được cập nhật.',
+        timer: 1500,
+        showConfirmButton: false
+      });
+      setShowAvailabilityManager(false);
+    } catch (error) {
+      Swal.fire({
+        icon: 'error',
+        title: 'Lỗi!',
+        text: 'Không thể cập nhật trạng thái phòng.'
+      });
+    }
+  };
+
+  // Tạo dãy ngày từ startDate đến endDate
+  const generateDateRange = (start, end) => {
+    const dates = [];
+    let current = new Date(start);
+    const endDate = new Date(end);
+    while (current <= endDate) {
+      dates.push(current.toISOString().split('T')[0]);
+      current.setDate(current.getDate() + 1);
+    }
+    return dates;
+  };
+
   return (
-    <div style={{ padding: '40px 20px', maxWidth: '1200px', margin: '0 auto' }}>
+    <div style={{ padding: '40px 20px', maxWidth: '1400px', margin: '0 auto' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px' }}>
         <h1 style={{ color: 'var(--neon-blue, #00a8ff)' }}>🚪 Quản lý Phòng & Loại Phòng</h1>
-        <Link to="/manager/dashboard" style={{ padding: '8px 15px', background: '#ccc', borderRadius: '5px', textDecoration: 'none', color: '#333' }}>
-          ⬅ Quay lại Dashboard
-        </Link>
+        <div style={{ display: 'flex', gap: '10px' }}>
+          <button
+            onClick={() => { setShowStatistics(true); fetchRoomStatistics(); }}
+            style={{ padding: '8px 15px', background: '#f39c12', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer', fontWeight: 'bold' }}
+          >
+            📊 Thống kê Phòng
+          </button>
+          <Link to="/manager/dashboard" style={{ padding: '8px 15px', background: '#ccc', borderRadius: '5px', textDecoration: 'none', color: '#333', fontWeight: 'bold' }}>
+            ⬅ Quay lại Dashboard
+          </Link>
+        </div>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '30px' }}>
@@ -275,8 +404,17 @@ export default function RoomManager() {
               <form onSubmit={handleRoomSubmit} style={{ display: 'flex', gap: '10px', background: '#fff', padding: '20px', borderRadius: '8px', boxShadow: '0 2px 4px rgba(0,0,0,0.05)', marginBottom: '20px' }}>
                 <input type="text" placeholder="Số phòng (VD: 101, 102)" required value={roomForm.roomNumber} onChange={e => setRoomForm({ ...roomForm, roomNumber: e.target.value })} style={{ padding: '8px', borderRadius: '5px', border: '1px solid #ccc', flex: 1 }} />
                 <button type="submit" style={{ padding: '8px 15px', background: 'var(--neon-blue, #00a8ff)', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer', fontWeight: 'bold' }}>
-                  Thêm phòng
+                  {isEditingRoom ? "Cập nhật" : "Thêm phòng"}
                 </button>
+                {isEditingRoom && (
+                  <button
+                    type="button"
+                    onClick={() => { setIsEditingRoom(false); setRoomForm({ id: null, roomNumber: "", isMaintenance: false, isAvailable: true, roomTypeId: selectedRoomType.id }); }}
+                    style={{ padding: '8px 15px', background: '#95a5a6', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer', fontWeight: 'bold' }}
+                  >
+                    Hủy
+                  </button>
+                )}
               </form>
 
               <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', background: 'white', borderRadius: '8px', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
@@ -284,6 +422,7 @@ export default function RoomManager() {
                   <tr style={{ background: '#f1f5f9' }}>
                     <th style={{ padding: '10px' }}>Số Phòng</th>
                     <th style={{ padding: '10px' }}>Trạng thái</th>
+                    <th style={{ padding: '10px' }}>Bảo trì</th>
                     <th style={{ padding: '10px' }}>Thao tác</th>
                   </tr>
                 </thead>
@@ -297,11 +436,36 @@ export default function RoomManager() {
                         </span>
                       </td>
                       <td style={{ padding: '10px' }}>
-                        <button onClick={() => deleteRoom(room.id)} style={{ padding: '3px 8px', background: '#e74c3c', color: 'white', border: 'none', borderRadius: '3px', cursor: 'pointer', fontSize: '12px' }}>Xóa</button>
+                        <input
+                          type="checkbox"
+                          checked={room.isMaintenance}
+                          onChange={() => handleToggleMaintenance(room.id, room.isMaintenance)}
+                          style={{ cursor: 'pointer', width: '18px', height: '18px' }}
+                          title="Đánh dấu nếu phòng đang bảo trì"
+                        />
+                      </td>
+                      <td style={{ padding: '10px' }}>
+                        <div style={{ display: 'flex', gap: '5px' }}>
+                          <button
+                            onClick={() => { setIsEditingRoom(true); setRoomForm(room); }}
+                            style={{ padding: '3px 8px', background: '#3498db', color: 'white', border: 'none', borderRadius: '3px', cursor: 'pointer', fontSize: '12px' }}
+                          >
+                            Sửa
+                          </button>
+                          <button
+                            onClick={() => handleOpenAvailabilityManager(room)}
+                            style={{ padding: '3px 8px', background: '#9b59b6', color: 'white', border: 'none', borderRadius: '3px', cursor: 'pointer', fontSize: '12px' }}
+                          >
+                            📅
+                          </button>
+                          <button onClick={() => deleteRoom(room.id)} style={{ padding: '3px 8px', background: '#e74c3c', color: 'white', border: 'none', borderRadius: '3px', cursor: 'pointer', fontSize: '12px' }}>
+                            Xóa
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   )) : (
-                    <tr><td colSpan="3" style={{ textAlign: 'center', padding: '20px', color: '#888' }}>Loại phòng này chưa có phòng vật lý nào. Hãy gõ số phòng để thêm ở trên!</td></tr>
+                    <tr><td colSpan="4" style={{ textAlign: 'center', padding: '20px', color: '#888' }}>Loại phòng này chưa có phòng vật lý nào. Hãy gõ số phòng để thêm ở trên!</td></tr>
                   )}
                 </tbody>
               </table>
@@ -309,6 +473,175 @@ export default function RoomManager() {
           )}
         </div>
       </div>
+
+      {/* MODAL: QUẢN LÝ TRẠNG THÁI PHÒNG THEO NGÀY */}
+      {showAvailabilityManager && selectedRoom && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000 }}>
+          <div style={{ background: 'white', padding: '30px', borderRadius: '10px', maxWidth: '800px', maxHeight: '80vh', overflowY: 'auto' }}>
+            <h2>📅 Quản lý Trạng thái Phòng {selectedRoom.roomNumber}</h2>
+
+            <div style={{ display: 'flex', gap: '15px', marginBottom: '20px', alignItems: 'center' }}>
+              <div>
+                <label>Từ ngày:</label>
+                <input
+                  type="date"
+                  value={availabilityDateRange.startDate}
+                  onChange={e => setAvailabilityDateRange({ ...availabilityDateRange, startDate: e.target.value })}
+                  style={{ padding: '8px', borderRadius: '5px', border: '1px solid #ccc', marginTop: '5px' }}
+                />
+              </div>
+              <div>
+                <label>Đến ngày:</label>
+                <input
+                  type="date"
+                  value={availabilityDateRange.endDate}
+                  onChange={e => setAvailabilityDateRange({ ...availabilityDateRange, endDate: e.target.value })}
+                  style={{ padding: '8px', borderRadius: '5px', border: '1px solid #ccc', marginTop: '5px' }}
+                />
+              </div>
+              <button
+                onClick={() => fetchRoomAvailability(selectedRoom.id)}
+                style={{ padding: '8px 15px', background: '#3498db', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer', alignSelf: 'flex-end' }}
+              >
+                Tải
+              </button>
+            </div>
+
+            {/* Hiển thị lịch */}
+            <div style={{ background: '#f9f9f9', padding: '15px', borderRadius: '8px', marginBottom: '20px', maxHeight: '300px', overflowY: 'auto' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(100px, 1fr))', gap: '8px' }}>
+                {generateDateRange(availabilityDateRange.startDate, availabilityDateRange.endDate).map(date => {
+                  const availability = availabilityData.find(a => a.date.split('T')[0] === date);
+                  const isAvailable = availability ? availability.isAvailable : true;
+
+                  return (
+                    <div
+                      key={date}
+                      onClick={() => {
+                        if (availability) {
+                          setAvailabilityData(availabilityData.map(a =>
+                            a.date.split('T')[0] === date ? { ...a, isAvailable: !a.isAvailable } : a
+                          ));
+                        } else {
+                          setAvailabilityData([...availabilityData, { date: new Date(date).toISOString(), isAvailable: false, notes: "" }]);
+                        }
+                      }}
+                      style={{
+                        padding: '10px',
+                        borderRadius: '5px',
+                        background: isAvailable ? '#dcfce7' : '#fee2e2',
+                        border: isAvailable ? '2px solid #16a34a' : '2px solid #dc2626',
+                        cursor: 'pointer',
+                        textAlign: 'center',
+                        fontSize: '12px',
+                        fontWeight: 'bold'
+                      }}
+                    >
+                      <div>{new Date(date).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' })}</div>
+                      <div style={{ fontSize: '10px', marginTop: '5px' }}>
+                        {isAvailable ? '✓ Trống' : '✗ Bận'}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button
+                onClick={handleUpdateAvailability}
+                style={{ padding: '10px 20px', background: '#27ae60', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer', flex: 1, fontWeight: 'bold' }}
+              >
+                💾 Lưu Thay đổi
+              </button>
+              <button
+                onClick={() => setShowAvailabilityManager(false)}
+                style={{ padding: '10px 20px', background: '#95a5a6', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer', flex: 1, fontWeight: 'bold' }}
+              >
+                Đóng
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: THỐNG KÊ PHÒNG */}
+      {showStatistics && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000 }}>
+          <div style={{ background: 'white', padding: '30px', borderRadius: '10px', maxWidth: '1000px', maxHeight: '80vh', overflowY: 'auto' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <h2>📊 Thống kê Phòng</h2>
+              <button
+                onClick={() => setShowStatistics(false)}
+                style={{ padding: '8px 15px', background: '#e74c3c', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer', fontWeight: 'bold' }}
+              >
+                Đóng
+              </button>
+            </div>
+
+            <div style={{ display: 'flex', gap: '15px', marginBottom: '20px' }}>
+              <div>
+                <label>Từ ngày:</label>
+                <input
+                  type="date"
+                  value={statsDateRange.startDate}
+                  onChange={e => setStatsDateRange({ ...statsDateRange, startDate: e.target.value })}
+                  style={{ padding: '8px', borderRadius: '5px', border: '1px solid #ccc', marginTop: '5px' }}
+                />
+              </div>
+              <div>
+                <label>Đến ngày:</label>
+                <input
+                  type="date"
+                  value={statsDateRange.endDate}
+                  onChange={e => setStatsDateRange({ ...statsDateRange, endDate: e.target.value })}
+                  style={{ padding: '8px', borderRadius: '5px', border: '1px solid #ccc', marginTop: '5px' }}
+                />
+              </div>
+              <button
+                onClick={fetchRoomStatistics}
+                style={{ padding: '8px 15px', background: '#3498db', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer', alignSelf: 'flex-end' }}
+              >
+                Xem Thống kê
+              </button>
+            </div>
+
+            {statsLoading ? (
+              <p style={{ textAlign: 'center' }}>Đang tải dữ liệu...</p>
+            ) : (
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+                  <thead>
+                    <tr style={{ background: '#f1f5f9' }}>
+                      <th style={{ padding: '10px', textAlign: 'left', borderBottom: '2px solid #ddd' }}>Phòng</th>
+                      <th style={{ padding: '10px', textAlign: 'center', borderBottom: '2px solid #ddd' }}>Loại</th>
+                      <th style={{ padding: '10px', textAlign: 'center', borderBottom: '2px solid #ddd' }}>Tổng ngày</th>
+                      <th style={{ padding: '10px', textAlign: 'center', borderBottom: '2px solid #ddd' }}>Trống</th>
+                      <th style={{ padding: '10px', textAlign: 'center', borderBottom: '2px solid #ddd' }}>Bận</th>
+                      <th style={{ padding: '10px', textAlign: 'center', borderBottom: '2px solid #ddd' }}>Tỉ lệ%</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {roomStats.map((stat, idx) => (
+                      <tr key={idx} style={{ borderBottom: '1px solid #eee' }}>
+                        <td style={{ padding: '10px' }}>
+                          <strong>Phòng {stat.roomNumber}</strong>
+                          {stat.isMaintenance && <span style={{ marginLeft: '5px', color: '#e74c3c', fontWeight: 'bold' }}>🔧</span>}
+                        </td>
+                        <td style={{ padding: '10px', textAlign: 'center', fontSize: '12px' }}>{stat.roomTypeName}</td>
+                        <td style={{ padding: '10px', textAlign: 'center', fontWeight: 'bold' }}>{stat.totalDays}</td>
+                        <td style={{ padding: '10px', textAlign: 'center', color: '#27ae60', fontWeight: 'bold' }}>{stat.availableDays}</td>
+                        <td style={{ padding: '10px', textAlign: 'center', color: '#e74c3c', fontWeight: 'bold' }}>{stat.occupiedDays}</td>
+                        <td style={{ padding: '10px', textAlign: 'center', background: '#fff3cd', fontWeight: 'bold' }}>{stat.occupancyRate}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
