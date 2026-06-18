@@ -60,7 +60,6 @@ export default function HotelDetail() {
   const handleBookingSubmit = async (e) => {
     e.preventDefault();
     
-    // 1. Kiểm tra ngày tháng
     if (!bookingForm.checkInDate || !bookingForm.checkOutDate) {
       alert("Vui lòng chọn ngày nhận và trả phòng!");
       return;
@@ -69,7 +68,6 @@ export default function HotelDetail() {
     const checkIn = new Date(bookingForm.checkInDate);
     const checkOut = new Date(bookingForm.checkOutDate);
     
-    // Tính số đêm lưu trú
     const timeDifference = checkOut.getTime() - checkIn.getTime();
     const numberOfNights = Math.ceil(timeDifference / (1000 * 3600 * 24));
 
@@ -78,7 +76,6 @@ export default function HotelDetail() {
       return;
     }
 
-    // 2. Lấy ID user nếu đã đăng nhập (Nếu là khách vãng lai đặt nhanh thì userId = null)
     let userId = null;
     const storedUser = localStorage.getItem("user");
     if (storedUser) {
@@ -86,9 +83,10 @@ export default function HotelDetail() {
     }
 
     try {
-      // 3. Tính chuẩn Tổng Tiền = Giá 1 đêm * Số lượng phòng * Số đêm
+      // Tính toán tổng số tiền phòng chuẩn xác
       const finalTotalPrice = selectedRoom.price * Number(bookingForm.roomQuantity) * numberOfNights;
 
+      // Đóng gói cấu trúc payload khớp hoàn toàn với CreateBookingDTO
       const bookingData = {
         userId: userId,
         guestName: bookingForm.guestName,
@@ -97,25 +95,22 @@ export default function HotelDetail() {
         roomQuantity: Number(bookingForm.roomQuantity),
         checkInDate: bookingForm.checkInDate,
         checkOutDate: bookingForm.checkOutDate,
-        totalPrice: finalTotalPrice, 
-        status: "Pending" // Mặc định là chờ duyệt
+        totalPrice: finalTotalPrice
       };
       
       const token = localStorage.getItem("token");
       const config = token ? { headers: { Authorization: `Bearer ${token}` } } : {};
       
-      // 4. Gọi API Đặt phòng
       await axios.post(`${API_BASE_URL}/Bookings`, bookingData, config);
       
       alert(`🎉 Đặt phòng thành công!\n- Số đêm: ${numberOfNights}\n- Tổng tiền: ${finalTotalPrice.toLocaleString()} VNĐ`);
-      setIsModalOpen(false); // Đóng modal
-      
+      setIsModalOpen(false);
     } catch (error) {
       console.error(error);
-      alert("Lỗi khi đặt phòng! Vui lòng thử lại.");
+      // Hiển thị chính xác lỗi từ Backend gửi về (nếu có)
+      alert(error.response?.data?.message || "Lỗi khi đặt phòng! Vui lòng thử lại.");
     }
   };
-
   if (loading) {
     return <div style={{ textAlign: "center", padding: "40px" }}>Đang tải dữ liệu khách sạn...</div>;
   }

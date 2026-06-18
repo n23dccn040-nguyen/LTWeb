@@ -5,7 +5,7 @@ using HotelBookingAPI.Models;
 
 namespace HotelBookingAPI.Controllers
 {
-    // Lớp DTO để nhận dữ liệu đặt phòng thuần túy từ Frontend, tránh lỗi xác thực Model phức tạp
+    // Lớp DTO để nhận dữ liệu đặt phòng thuần túy từ Frontend
     public class CreateBookingDTO
     {
         public int? UserId { get; set; }
@@ -16,6 +16,12 @@ namespace HotelBookingAPI.Controllers
         public DateTime CheckInDate { get; set; }
         public DateTime CheckOutDate { get; set; }
         public decimal TotalPrice { get; set; }
+    }
+
+    // Lớp DTO cập nhật trạng thái
+    public class UpdateBookingStatusDTO
+    {
+        public string Status { get; set; }
     }
 
     [Route("api/[controller]")]
@@ -29,33 +35,29 @@ namespace HotelBookingAPI.Controllers
             _context = context;
         }
 
-        // 1. Thực hiện Đặt phòng (Đã fix lỗi DTO và lỗi định tuyến CreatedAtAction)
+        // 1. Thực hiện Đặt phòng
         [HttpPost]
         public async Task<IActionResult> CreateBooking([FromBody] CreateBookingDTO dto)
         {
-            // Kiểm tra xem Loại phòng có tồn tại trên hệ thống không
             var roomType = await _context.RoomTypes.FindAsync(dto.RoomTypeId);
             if (roomType == null) 
             {
                 return BadRequest(new { message = "Loại phòng được chọn không tồn tại." });
             }
 
-            // Tìm và lấy ra danh sách các phòng vật lý đang trống và không bảo trì thuộc loại phòng này
             var availableRooms = await _context.Rooms
                 .Where(r => r.RoomTypeId == dto.RoomTypeId && r.IsAvailable == true && r.IsMaintenance == false)
                 .Take(dto.RoomQuantity)
                 .ToListAsync();
 
-            // Nếu số lượng phòng trống thực tế ít hơn số lượng khách yêu cầu đặt
             if (availableRooms.Count < dto.RoomQuantity)
             {
                 return BadRequest(new { message = "Xin lỗi, loại phòng này hiện tại không đủ số lượng phòng trống để đáp ứng." });
             }
 
-            // --- TIẾN HÀNH LẬP ĐƠN ĐẶT PHÒNG ---
             var booking = new Booking
             {
-                UserId = dto.UserId, // Nhận Id nếu đã đăng nhập, hoặc null nếu đặt phòng nhanh công khai
+                UserId = dto.UserId,
                 GuestName = dto.GuestName,
                 GuestPhone = dto.GuestPhone,
                 RoomTypeId = dto.RoomTypeId,
@@ -63,25 +65,21 @@ namespace HotelBookingAPI.Controllers
                 CheckInDate = dto.CheckInDate,
                 CheckOutDate = dto.CheckOutDate,
                 TotalPrice = dto.TotalPrice,
-                Status = "Pending" // Mặc định trạng thái ban đầu là Chờ duyệt
+                Status = "Pending"
             };
 
             _context.Bookings.Add(booking);
 
-            // Cập nhật trạng thái của các phòng vật lý vừa được chọn sang bận (IsAvailable = false)
             foreach (var room in availableRooms)
             {
                 room.IsAvailable = false;
             }
 
-            // Lưu toàn bộ thay đổi vào SQL Server
             await _context.SaveChangesAsync();
-
-            // Trả về kết quả Ok kèm dữ liệu thành công (Tránh dùng CreatedAtAction để không bị lỗi định tuyến)
             return Ok(booking);
         }
 
-        // 2. Lấy danh sách đặt phòng của MỘT khách sạn (Có tìm kiếm, phân trang, lọc trạng thái)
+        // 2. Lấy danh sách đặt phòng của MỘT khách sạn
         [HttpGet("hotel/{hotelId}")]
         public async Task<ActionResult> GetBookingsByHotel(
             int hotelId,
@@ -127,7 +125,33 @@ namespace HotelBookingAPI.Controllers
             });
         }
 
-        // 3. Lấy lịch sử đặt phòng của khách hàng dựa vào UserId
+        // --- HÀM THỐNG KÊ ĐÃ ĐƯỢC BỔ SUNG VÀO ĐÂY ---
+        // 3. Lấy thống kê trạng thái phòng theo khoảng thời gian
+        [HttpGet("hotel/{hotelId}/statistics")]
+        public async Task<IActionResult> GetHotelStatistics(int hotelId, [FromQuery] DateTime startDate, [FromQuery] DateTime endDate)
+        {
+            // Mở rộng endDate đến 23:59:59 của ngày kết thúc
+            var endOfDay = endDate.Date.AddDays(1).AddTicks(-1);
+
+            var bookings = await _context.Bookings
+                .Include(b => b.RoomType)
+                .Where(b => b.RoomType.HotelId == hotelId 
+                            && b.CheckInDate >= startDate.Date 
+                            && b.CheckInDate <= endOfDay) // Chỉ so sánh ngày Check-in
+                .ToListAsync();
+
+            var stats = new
+            {
+                TotalBookings = bookings.Count,
+                TotalRevenue = bookings.Where(b => b.Status == "Confirmed" || b.Status == "CheckedIn").Sum(b => b.TotalPrice),
+                CancelledBookings = bookings.Count(b => b.Status == "Cancelled"),
+                PendingBookings = bookings.Count(b => b.Status == "Pending")
+            };
+
+            return Ok(stats);
+        }
+
+        // 4. Lấy lịch sử đặt phòng của khách hàng dựa vào UserId
         [HttpGet("user/{userId}")]
         public async Task<ActionResult<IEnumerable<Booking>>> GetUserBookings(int userId)
         {
@@ -138,7 +162,7 @@ namespace HotelBookingAPI.Controllers
                 .ToListAsync();
         }
 
-        // 4. Cập nhật trạng thái đơn đặt phòng (Duyệt/Nhận phòng/Hủy)
+        // 5. Cập nhật trạng thái đơn đặt phòng
         [HttpPut("{id}")]
         public async Task<IActionResult> PutBooking(int id, [FromBody] UpdateBookingStatusDTO request)
         {
@@ -158,7 +182,7 @@ namespace HotelBookingAPI.Controllers
             return Ok(existingBooking);
         }
 
-        // 5. Xóa hẳn đơn đặt phòng
+        // 6. Xóa hẳn đơn đặt phòng
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteBooking(int id)
         {
@@ -176,10 +200,5 @@ namespace HotelBookingAPI.Controllers
             await _context.SaveChangesAsync();
             return Ok(new { message = "Đã xóa thành công đơn đặt phòng." });
         }
-    }
-
-    public class UpdateBookingStatusDTO
-    {
-        public string Status { get; set; }
     }
 }
