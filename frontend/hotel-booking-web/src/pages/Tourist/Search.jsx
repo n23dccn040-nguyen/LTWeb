@@ -5,7 +5,7 @@ import SearchBar from "../../components/SearchBar";
 import HotelCard from "../../components/HotelCard";
 
 export default function Search() {
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
 
   const [filters, setFilters] = useState({
@@ -30,35 +30,38 @@ export default function Search() {
 
   const [hotels, setHotels] = useState([]);
   const [loading, setLoading] = useState(false);
+
   const API_BASE_URL = "http://localhost:5154/api";
 
   const fetchHotels = async () => {
     setLoading(true);
+
     try {
       const params = new URLSearchParams();
-      
-      // Nạp bộ lọc
+
       if (filters.city) params.append("city", filters.city);
       if (filters.minPrice) params.append("minPrice", filters.minPrice);
       if (filters.maxPrice) params.append("maxPrice", filters.maxPrice);
       if (filters.roomType) params.append("roomType", filters.roomType);
       if (filters.checkIn) params.append("checkIn", filters.checkIn);
       if (filters.checkOut) params.append("checkOut", filters.checkOut);
-      
-      // Nạp phân trang và sắp xếp
+
       params.append("page", pagination.page);
       params.append("pageSize", pagination.pageSize);
       params.append("sortBy", sortOptions.sortBy);
       params.append("sortOrder", sortOptions.sortOrder);
 
-      const response = await axios.get(`${API_BASE_URL}/Hotels/search?${params.toString()}`);
-      
+      const response = await axios.get(
+        `${API_BASE_URL}/Hotels/search?${params.toString()}`,
+      );
+
       setHotels(response.data.data || []);
+
       if (response.data.pagination) {
-        setPagination(prev => ({
+        setPagination((prev) => ({
           ...prev,
           totalPages: response.data.pagination.totalPages,
-          page: response.data.pagination.currentPage
+          page: response.data.pagination.currentPage,
         }));
       }
     } catch (error) {
@@ -68,7 +71,6 @@ export default function Search() {
     }
   };
 
-  // Tự động tìm kiếm khi phân trang hoặc sắp xếp thay đổi
   useEffect(() => {
     fetchHotels();
   }, [pagination.page, sortOptions.sortBy, sortOptions.sortOrder]);
@@ -79,29 +81,48 @@ export default function Search() {
 
   const handleSearch = (e) => {
     e.preventDefault();
-    // Đưa về trang 1 và gọi API khi bấm nút Tìm kiếm
-    setPagination(prev => ({ ...prev, page: 1 }));
+    setPagination((prev) => ({ ...prev, page: 1 }));
     fetchHotels();
   };
 
   const handlePageChange = (newPage) => {
     if (newPage >= 1 && newPage <= pagination.totalPages) {
-      setPagination(prev => ({ ...prev, page: newPage }));
+      setPagination((prev) => ({ ...prev, page: newPage }));
     }
   };
 
   const handleSortChange = (e) => {
     const value = e.target.value;
+
     let newSortBy = "name";
     let newSortOrder = "asc";
 
-    if (value === "name_asc") { newSortBy = "name"; newSortOrder = "asc"; }
-    if (value === "name_desc") { newSortBy = "name"; newSortOrder = "desc"; }
-    if (value === "city_asc") { newSortBy = "city"; newSortOrder = "asc"; }
-    if (value === "city_desc") { newSortBy = "city"; newSortOrder = "desc"; }
+    if (value === "name_asc") {
+      newSortBy = "name";
+      newSortOrder = "asc";
+    }
+    if (value === "name_desc") {
+      newSortBy = "name";
+      newSortOrder = "desc";
+    }
+    if (value === "city_asc") {
+      newSortBy = "city";
+      newSortOrder = "asc";
+    }
+    if (value === "city_desc") {
+      newSortBy = "city";
+      newSortOrder = "desc";
+    }
 
-    setSortOptions({ sortBy: newSortBy, sortOrder: newSortOrder });
-    setPagination(prev => ({ ...prev, page: 1 }));
+    setSortOptions({
+      sortBy: newSortBy,
+      sortOrder: newSortOrder,
+    });
+
+    setPagination((prev) => ({
+      ...prev,
+      page: 1,
+    }));
   };
 
   const goToDetail = (hotelId) => {
@@ -109,73 +130,159 @@ export default function Search() {
   };
 
   return (
-    <div className="search-page-container" style={{ padding: '40px 20px', maxWidth: '1200px', margin: '0 auto' }}>
-      <h1 style={{ textAlign: 'center', marginBottom: '20px' }}>Kết Quả Tìm Kiếm</h1>
-      
-      <div style={{ background: '#f5f7fa', padding: '20px', borderRadius: '10px', marginBottom: '30px' }}>
-        <SearchBar
-          filters={filters}
-          onInputChange={handleInputChange}
-          onSearch={handleSearch}
-        />
-      </div>
+    <div
+      className="search-page-container"
+      style={{
+        backgroundImage: `linear-gradient(
+          rgba(255,255,255,0.35),
+          rgba(255,255,255,0.45)
+        ), url('https://images.unsplash.com/photo-1507525428034-b723cf961d3e?q=80&w=2000&auto=format&fit=crop')`,
+        backgroundSize: "cover",
+        backgroundPosition: "center",
+        backgroundAttachment: "fixed",
+        minHeight: "100vh",
+        padding: "40px 20px",
+      }}
+    >
+      <div style={{ maxWidth: "1200px", margin: "0 auto" }}>
+        <h1
+          style={{
+            textAlign: "center",
+            marginBottom: "20px",
+            color: "#2c3e50",
+            textShadow: "1px 1px 5px rgba(255,255,255,0.8)",
+          }}
+        >
+          Kết Quả Tìm Kiếm
+        </h1>
 
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-        <span>Tìm thấy <strong>{hotels.length > 0 ? hotels.length : 0}</strong> khách sạn trên trang này.</span>
-        
-        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-          <label>Sắp xếp theo:</label>
-          <select 
-            value={`${sortOptions.sortBy}_${sortOptions.sortOrder}`} 
-            onChange={handleSortChange}
-            style={{ padding: '8px', borderRadius: '5px', border: '1px solid #ccc' }}
-          >
-            <option value="name_asc">Tên (A-Z)</option>
-            <option value="name_desc">Tên (Z-A)</option>
-            <option value="city_asc">Thành phố (A-Z)</option>
-            <option value="city_desc">Thành phố (Z-A)</option>
-          </select>
+        <div
+          style={{
+            background: "rgba(255,255,255,0.85)",
+            padding: "20px",
+            borderRadius: "12px",
+            marginBottom: "30px",
+            boxShadow: "0 8px 20px rgba(0,0,0,0.12)",
+            backdropFilter: "blur(6px)",
+          }}
+        >
+          <SearchBar
+            filters={filters}
+            onInputChange={handleInputChange}
+            onSearch={handleSearch}
+          />
         </div>
-      </div>
 
-      <div style={{ marginTop: '20px' }}>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            marginBottom: "20px",
+            background: "rgba(255,255,255,0.75)",
+            padding: "10px 20px",
+            borderRadius: "10px",
+            backdropFilter: "blur(4px)",
+          }}
+        >
+          <span>
+            Tìm thấy <strong>{hotels.length}</strong> khách sạn trên trang này.
+          </span>
+
+          <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+            <label>Sắp xếp theo:</label>
+
+            <select
+              value={`${sortOptions.sortBy}_${sortOptions.sortOrder}`}
+              onChange={handleSortChange}
+              style={{
+                padding: "8px",
+                borderRadius: "6px",
+                border: "1px solid #ccc",
+              }}
+            >
+              <option value="name_asc">Tên (A-Z)</option>
+              <option value="name_desc">Tên (Z-A)</option>
+              <option value="city_asc">Thành phố (A-Z)</option>
+              <option value="city_desc">Thành phố (Z-A)</option>
+            </select>
+          </div>
+        </div>
+
         {loading ? (
-          <p style={{ textAlign: "center", padding: "40px", color: "#666" }}>Đang tải dữ liệu...</p>
+          <p
+            style={{
+              textAlign: "center",
+              padding: "40px",
+              fontSize: "18px",
+            }}
+          >
+            Đang tải dữ liệu...
+          </p>
         ) : (
           <>
-            <div className="hotel-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '20px' }}>
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fill, minmax(300px,1fr))",
+                gap: "20px",
+              }}
+            >
               {hotels.length > 0 ? (
                 hotels.map((hotel) => (
-                  <div key={hotel.id} onClick={() => goToDetail(hotel.id)} style={{ cursor: 'pointer' }}>
-                    <HotelCard
-                      hotel={hotel}
-                      onOpenModal={() => goToDetail(hotel.id)}
-                    />
+                  <div
+                    key={hotel.id}
+                    onClick={() => goToDetail(hotel.id)}
+                    style={{ cursor: "pointer" }}
+                  >
+                    <HotelCard hotel={hotel} />
                   </div>
                 ))
               ) : (
-                <p style={{ textAlign: "center", color: "#95a5a6", padding: "40px", fontSize: "16px", gridColumn: "1 / -1" }}>
+                <p
+                  style={{
+                    textAlign: "center",
+                    padding: "40px",
+                    background: "rgba(255,255,255,0.7)",
+                    borderRadius: "10px",
+                    gridColumn: "1 / -1",
+                  }}
+                >
                   Chưa có dữ liệu phù hợp với bộ lọc.
                 </p>
               )}
             </div>
 
             {pagination.totalPages > 1 && (
-              <div style={{ display: 'flex', justifyContent: 'center', gap: '10px', marginTop: '40px' }}>
-                <button 
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "center",
+                  gap: "10px",
+                  marginTop: "40px",
+                }}
+              >
+                <button
                   onClick={() => handlePageChange(pagination.page - 1)}
                   disabled={pagination.page === 1}
-                  style={{ padding: '8px 16px', borderRadius: '5px', border: '1px solid #ccc', background: pagination.page === 1 ? '#eee' : 'white', cursor: pagination.page === 1 ? 'not-allowed' : 'pointer' }}
                 >
                   Trang trước
                 </button>
-                <span style={{ padding: '8px 16px', background: 'var(--neon-blue)', color: 'white', borderRadius: '5px' }}>
+
+                <span
+                  style={{
+                    padding: "8px 16px",
+                    background: "#00a8ff",
+                    color: "#fff",
+                    borderRadius: "6px",
+                  }}
+                >
                   Trang {pagination.page} / {pagination.totalPages}
                 </span>
-                <button 
+
+                <button
                   onClick={() => handlePageChange(pagination.page + 1)}
                   disabled={pagination.page === pagination.totalPages}
-                  style={{ padding: '8px 16px', borderRadius: '5px', border: '1px solid #ccc', background: pagination.page === pagination.totalPages ? '#eee' : 'white', cursor: pagination.page === pagination.totalPages ? 'not-allowed' : 'pointer' }}
                 >
                   Trang sau
                 </button>
