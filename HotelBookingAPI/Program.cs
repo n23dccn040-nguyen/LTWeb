@@ -9,6 +9,7 @@ var builder = WebApplication.CreateBuilder(args);
 // 1. Kích hoạt Controller và Swagger
 builder.Services.AddControllers().AddJsonOptions(options =>
 {
+    // Bỏ qua lỗi vòng lặp dữ liệu vô tận khi trả về JSON
     options.JsonSerializerOptions.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles;
 });
 builder.Services.AddEndpointsApiExplorer();
