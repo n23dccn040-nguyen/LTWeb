@@ -10,7 +10,7 @@ services:
       - "5154:8080"
     environment:
       # Dùng host.docker.internal để Backend gọi ra SQL Server ở ngoài máy thật
-      - ConnectionStrings__DefaultConnection=Server=host.docker.internal,1433;Database=HotelBookingDB;User Id=sa;Password=Password@123;TrustServerCertificate=True;
+      - ConnectionStrings__DefaultConnection=Server=host.docker.internal,1433;Database=HotelBookingDB;User Id=sa;Password=123;TrustServerCertificate=True;
 
   # 2. Container Frontend (ReactJS)
   frontend:
