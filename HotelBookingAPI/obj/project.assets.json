@@ -3646,24 +3646,26 @@
     ]
   },
   "packageFolders": {
-    "C:\\Users\\TGDD\\.nuget\\packages\\": {}
+    "C:\\Users\\adminn\\.nuget\\packages\\": {}
   },
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "D:\\Do-an-LTWeb\\HotelBookingAPI\\HotelBookingAPI.csproj",
+      "projectUniqueName": "C:\\Users\\adminn\\Documents\\Do-an-LTWeb\\HotelBookingAPI\\HotelBookingAPI.csproj",
       "projectName": "HotelBookingAPI",
-      "projectPath": "D:\\Do-an-LTWeb\\HotelBookingAPI\\HotelBookingAPI.csproj",
-      "packagesPath": "C:\\Users\\TGDD\\.nuget\\packages\\",
-      "outputPath": "D:\\Do-an-LTWeb\\HotelBookingAPI\\obj\\",
+      "projectPath": "C:\\Users\\adminn\\Documents\\Do-an-LTWeb\\HotelBookingAPI\\HotelBookingAPI.csproj",
+      "packagesPath": "C:\\Users\\adminn\\.nuget\\packages\\",
+      "outputPath": "C:\\Users\\adminn\\Documents\\Do-an-LTWeb\\HotelBookingAPI\\obj\\",
       "projectStyle": "PackageReference",
       "configFilePaths": [
-        "C:\\Users\\TGDD\\AppData\\Roaming\\NuGet\\NuGet.Config"
+        "C:\\Users\\adminn\\AppData\\Roaming\\NuGet\\NuGet.Config",
+        "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
       ],
       "originalTargetFrameworks": [
         "net10.0"
       ],
       "sources": {
+        "C:\\Program Files (x86)\\Microsoft SDKs\\NuGetPackages\\": {},
         "https://api.nuget.org/v3/index.json": {}
       },
       "frameworks": {
@@ -3683,7 +3685,7 @@
         "auditLevel": "low",
         "auditMode": "all"
       },
-      "SdkAnalysisLevel": "11.0.100"
+      "SdkAnalysisLevel": "10.0.300"
     },
     "frameworks": {
       "net10.0": {
@@ -3734,24 +3736,6 @@
         ],
         "assetTargetFallback": true,
         "warn": true,
-        "downloadDependencies": [
-          {
-            "name": "Microsoft.AspNetCore.App.Ref",
-            "version": "[10.0.8, 10.0.8]"
-          },
-          {
-            "name": "Microsoft.NETCore.App.Host.win-x64",
-            "version": "[10.0.8, 10.0.8]"
-          },
-          {
-            "name": "Microsoft.NETCore.App.Ref",
-            "version": "[10.0.8, 10.0.8]"
-          },
-          {
-            "name": "Microsoft.WindowsDesktop.App.Ref",
-            "version": "[10.0.8, 10.0.8]"
-          }
-        ],
         "frameworkReferences": {
           "Microsoft.AspNetCore.App": {
             "privateAssets": "none"
@@ -3760,7 +3744,7 @@
             "privateAssets": "all"
           }
         },
-        "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\11.0.100-preview.5.26302.115/PortableRuntimeIdentifierGraph.json",
+        "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\10.0.300/PortableRuntimeIdentifierGraph.json",
         "packagesToPrune": {
           "Microsoft.AspNetCore": "(,10.0.32767]",
           "Microsoft.AspNetCore.Antiforgery": "(,10.0.32767]",

@@ -6,9 +6,23 @@ import Swal from "sweetalert2";
 export default function RoomManager() {
   const { hotelId } = useParams();
   const [roomTypes, setRoomTypes] = useState([]);
+  const [allRoomTypes, setAllRoomTypes] = useState([]);
   const [selectedRoomType, setSelectedRoomType] = useState(null);
   const [rooms, setRooms] = useState([]);
+  const [allRooms, setAllRooms] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  // States for room types pagination, search, sort
+  const [rtPagination, setRtPagination] = useState({ page: 1, pageSize: 8, totalPages: 1 });
+  const [rtSearchName, setRtSearchName] = useState("");
+  const [rtSortBy, setRtSortBy] = useState("name");
+  const [rtSortOrder, setRtSortOrder] = useState("asc");
+
+  // States for rooms pagination, search, sort
+  const [roomPagination, setRoomPagination] = useState({ page: 1, pageSize: 10, totalPages: 1 });
+  const [roomSearchNumber, setRoomSearchNumber] = useState("");
+  const [roomSortBy, setRoomSortBy] = useState("roomNumber");
+  const [roomSortOrder, setRoomSortOrder] = useState("asc");
 
   // Forms state
   const [isEditingType, setIsEditingType] = useState(false);
@@ -45,7 +59,9 @@ export default function RoomManager() {
     setLoading(true);
     try {
       const response = await axios.get(`${API_BASE_URL}/RoomTypes/hotel/${hotelId}`);
-      setRoomTypes(response.data || []);
+      const data = response.data || [];
+      setAllRoomTypes(data);
+      applyRoomTypesFilters(data);
     } catch (error) {
       console.error("Lỗi khi tải loại phòng:", error);
     } finally {
@@ -53,10 +69,73 @@ export default function RoomManager() {
     }
   };
 
+  const applyRoomTypesFilters = (data) => {
+    let filtered = [...data];
+    
+    // Apply search
+    if (rtSearchName) {
+      filtered = filtered.filter(rt => rt.name?.toLowerCase().includes(rtSearchName.toLowerCase()));
+    }
+    
+    // Apply sorting
+    filtered.sort((a, b) => {
+      let aVal, bVal;
+      if (rtSortBy === "name") {
+        aVal = a.name;
+        bVal = b.name;
+      } else if (rtSortBy === "price") {
+        aVal = a.price;
+        bVal = b.price;
+      }
+      
+      if (rtSortOrder === "asc") {
+        return aVal > bVal ? 1 : -1;
+      } else {
+        return aVal < bVal ? 1 : -1;
+      }
+    });
+    
+    // Apply pagination
+    const totalPages = Math.ceil(filtered.length / rtPagination.pageSize);
+    const startIdx = (rtPagination.page - 1) * rtPagination.pageSize;
+    const endIdx = startIdx + rtPagination.pageSize;
+    
+    setRoomTypes(filtered.slice(startIdx, endIdx));
+    setRtPagination(prev => ({ ...prev, totalPages }));
+  };
+
+  const applyRoomsFilters = (data) => {
+    let filtered = [...data];
+    
+    // Apply search
+    if (roomSearchNumber) {
+      filtered = filtered.filter(r => r.roomNumber?.includes(roomSearchNumber));
+    }
+    
+    // Apply sorting
+    filtered.sort((a, b) => {
+      if (roomSortOrder === "asc") {
+        return a.roomNumber > b.roomNumber ? 1 : -1;
+      } else {
+        return a.roomNumber < b.roomNumber ? 1 : -1;
+      }
+    });
+    
+    // Apply pagination
+    const totalPages = Math.ceil(filtered.length / roomPagination.pageSize);
+    const startIdx = (roomPagination.page - 1) * roomPagination.pageSize;
+    const endIdx = startIdx + roomPagination.pageSize;
+    
+    setRooms(filtered.slice(startIdx, endIdx));
+    setRoomPagination(prev => ({ ...prev, totalPages }));
+  };
+
   const fetchRooms = async (typeId) => {
     try {
       const response = await axios.get(`${API_BASE_URL}/Rooms/roomtype/${typeId}`);
-      setRooms(response.data || []);
+      const data = response.data || [];
+      setAllRooms(data);
+      applyRoomsFilters(data);
     } catch (error) {
       console.error("Lỗi khi tải phòng vật lý:", error);
     }
@@ -97,9 +176,37 @@ export default function RoomManager() {
     fetchRoomTypes();
   }, [hotelId]);
 
+  useEffect(() => {
+    if (allRoomTypes.length > 0) {
+      setRtPagination(prev => ({ ...prev, page: 1 }));
+      applyRoomTypesFilters(allRoomTypes);
+    }
+  }, [rtSearchName, rtSortBy, rtSortOrder]);
+
+  useEffect(() => {
+    if (allRoomTypes.length > 0) {
+      applyRoomTypesFilters(allRoomTypes);
+    }
+  }, [rtPagination.page]);
+
+  useEffect(() => {
+    if (allRooms.length > 0) {
+      setRoomPagination(prev => ({ ...prev, page: 1 }));
+      applyRoomsFilters(allRooms);
+    }
+  }, [roomSearchNumber, roomSortBy, roomSortOrder]);
+
+  useEffect(() => {
+    if (allRooms.length > 0) {
+      applyRoomsFilters(allRooms);
+    }
+  }, [roomPagination.page]);
+
   const handleSelectType = (type) => {
     setSelectedRoomType(type);
     setRoomForm({ ...roomForm, roomTypeId: type.id });
+    setRoomPagination({ page: 1, pageSize: 10, totalPages: 1 });
+    setRoomSearchNumber("");
     fetchRooms(type.id);
   };
 
@@ -370,22 +477,73 @@ export default function RoomManager() {
             </div>
           </form>
 
-          <h3 style={{ marginTop: '30px' }}>Danh sách Loại phòng hiện có:</h3>
+          <h3 style={{ marginTop: '30px', marginBottom: '15px' }}>Danh sách Loại phòng hiện có:</h3>
+          
+          {/* Search & Sort Controls for Room Types */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '10px', marginBottom: '15px' }}>
+            <input 
+              type="text" 
+              placeholder="Tìm theo tên loại phòng..."
+              value={rtSearchName}
+              onChange={(e) => setRtSearchName(e.target.value)}
+              style={{ padding: '8px', borderRadius: '5px', border: '1px solid #ccc' }}
+            />
+            <select 
+              value={rtSortBy}
+              onChange={(e) => setRtSortBy(e.target.value)}
+              style={{ padding: '8px', borderRadius: '5px', border: '1px solid #ccc' }}
+            >
+              <option value="name">Sắp xếp: Tên</option>
+              <option value="price">Sắp xếp: Giá</option>
+            </select>
+            <button 
+              onClick={() => setRtSortOrder(rtSortOrder === 'asc' ? 'desc' : 'asc')}
+              style={{ padding: '8px', borderRadius: '5px', border: '1px solid #ccc', background: 'var(--neon-blue, #00a8ff)', color: 'white', cursor: 'pointer', fontWeight: 'bold' }}
+            >
+              {rtSortOrder === 'asc' ? '⬆️ Tăng dần' : '⬇️ Giảm dần'}
+            </button>
+          </div>
+
           {loading ? <p>Đang tải dữ liệu...</p> : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              {roomTypes.map(rt => (
-                <div key={rt.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '15px', background: selectedRoomType?.id === rt.id ? '#e0f2fe' : '#fff', border: '1px solid #ddd', borderRadius: '8px' }}>
-                  <div onClick={() => handleSelectType(rt)} style={{ cursor: 'pointer', flex: 1 }}>
-                    <strong style={{ fontSize: '16px', color: '#333' }}>{rt.name}</strong>
-                    <p style={{ margin: '5px 0 0 0', color: '#00a8ff', fontWeight: 'bold' }}>{rt.price?.toLocaleString()} VNĐ/đêm</p>
+            <>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '15px' }}>
+                {roomTypes.map(rt => (
+                  <div key={rt.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '15px', background: selectedRoomType?.id === rt.id ? '#e0f2fe' : '#fff', border: '1px solid #ddd', borderRadius: '8px' }}>
+                    <div onClick={() => handleSelectType(rt)} style={{ cursor: 'pointer', flex: 1 }}>
+                      <strong style={{ fontSize: '16px', color: '#333' }}>{rt.name}</strong>
+                      <p style={{ margin: '5px 0 0 0', color: '#00a8ff', fontWeight: 'bold' }}>{rt.price?.toLocaleString()} VNĐ/đêm</p>
+                    </div>
+                    <div style={{ display: 'flex', gap: '5px' }}>
+                      <button onClick={() => { setIsEditingType(true); setTypeForm(rt); }} style={{ padding: '5px 10px', background: '#f39c12', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>Sửa</button>
+                      <button onClick={() => handleDeleteType(rt.id)} style={{ padding: '5px 10px', background: '#e74c3c', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>Xóa</button>
+                    </div>
                   </div>
-                  <div style={{ display: 'flex', gap: '5px' }}>
-                    <button onClick={() => { setIsEditingType(true); setTypeForm(rt); }} style={{ padding: '5px 10px', background: '#f39c12', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>Sửa</button>
-                    <button onClick={() => handleDeleteType(rt.id)} style={{ padding: '5px 10px', background: '#e74c3c', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>Xóa</button>
-                  </div>
+                ))}
+              </div>
+
+              {/* Pagination for Room Types */}
+              {rtPagination.totalPages > 1 && (
+                <div style={{ display: 'flex', justifyContent: 'center', gap: '10px', marginTop: '15px' }}>
+                  <button 
+                    onClick={() => setRtPagination({...rtPagination, page: rtPagination.page - 1})}
+                    disabled={rtPagination.page === 1}
+                    style={{ padding: '6px 12px', borderRadius: '5px', border: '1px solid #ccc', background: rtPagination.page === 1 ? '#eee' : 'white', cursor: rtPagination.page === 1 ? 'not-allowed' : 'pointer', fontSize: '12px' }}
+                  >
+                    Trước
+                  </button>
+                  <span style={{ padding: '6px 12px', background: 'var(--neon-blue, #00a8ff)', color: 'white', borderRadius: '5px', fontSize: '12px' }}>
+                    {rtPagination.page} / {rtPagination.totalPages}
+                  </span>
+                  <button 
+                    onClick={() => setRtPagination({...rtPagination, page: rtPagination.page + 1})}
+                    disabled={rtPagination.page === rtPagination.totalPages}
+                    style={{ padding: '6px 12px', borderRadius: '5px', border: '1px solid #ccc', background: rtPagination.page === rtPagination.totalPages ? '#eee' : 'white', cursor: rtPagination.page === rtPagination.totalPages ? 'not-allowed' : 'pointer', fontSize: '12px' }}
+                  >
+                    Sau
+                  </button>
                 </div>
-              ))}
-            </div>
+              )}
+            </>
           )}
         </div>
 
@@ -416,6 +574,25 @@ export default function RoomManager() {
                   </button>
                 )}
               </form>
+
+              {/* Search & Sort Controls for Rooms */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '10px', marginBottom: '15px' }}>
+                <input 
+                  type="text" 
+                  placeholder="Tìm theo số phòng..."
+                  value={roomSearchNumber}
+                  onChange={(e) => setRoomSearchNumber(e.target.value)}
+                  style={{ padding: '8px', borderRadius: '5px', border: '1px solid #ccc' }}
+                />
+                <select 
+                  value={roomSortOrder}
+                  onChange={(e) => setRoomSortOrder(e.target.value)}
+                  style={{ padding: '8px', borderRadius: '5px', border: '1px solid #ccc' }}
+                >
+                  <option value="asc">⬆️ Tăng dần</option>
+                  <option value="desc">⬇️ Giảm dần</option>
+                </select>
+              </div>
 
               <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', background: 'white', borderRadius: '8px', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
                 <thead>
@@ -469,6 +646,29 @@ export default function RoomManager() {
                   )}
                 </tbody>
               </table>
+
+              {/* Pagination for Rooms */}
+              {roomPagination.totalPages > 1 && (
+                <div style={{ display: 'flex', justifyContent: 'center', gap: '10px', marginTop: '15px' }}>
+                  <button 
+                    onClick={() => setRoomPagination({...roomPagination, page: roomPagination.page - 1})}
+                    disabled={roomPagination.page === 1}
+                    style={{ padding: '6px 12px', borderRadius: '5px', border: '1px solid #ccc', background: roomPagination.page === 1 ? '#eee' : 'white', cursor: roomPagination.page === 1 ? 'not-allowed' : 'pointer', fontSize: '12px' }}
+                  >
+                    Trước
+                  </button>
+                  <span style={{ padding: '6px 12px', background: 'var(--neon-blue, #00a8ff)', color: 'white', borderRadius: '5px', fontSize: '12px' }}>
+                    {roomPagination.page} / {roomPagination.totalPages}
+                  </span>
+                  <button 
+                    onClick={() => setRoomPagination({...roomPagination, page: roomPagination.page + 1})}
+                    disabled={roomPagination.page === roomPagination.totalPages}
+                    style={{ padding: '6px 12px', borderRadius: '5px', border: '1px solid #ccc', background: roomPagination.page === roomPagination.totalPages ? '#eee' : 'white', cursor: roomPagination.page === roomPagination.totalPages ? 'not-allowed' : 'pointer', fontSize: '12px' }}
+                  >
+                    Sau
+                  </button>
+                </div>
+              )}
             </>
           )}
         </div>
