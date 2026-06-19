@@ -6,6 +6,7 @@ import Swal from "sweetalert2";
 export default function HotelAdminManager() {
   const [hotels, setHotels] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [allHotels, setAllHotels] = useState([]);
 
   // Forms state
   const [isEditing, setIsEditing] = useState(false);
@@ -15,6 +16,9 @@ export default function HotelAdminManager() {
 
   const [pagination, setPagination] = useState({ page: 1, pageSize: 10, totalPages: 1 });
   const [searchCity, setSearchCity] = useState("");
+  const [searchName, setSearchName] = useState("");
+  const [sortBy, setSortBy] = useState("name");
+  const [sortOrder, setSortOrder] = useState("asc");
 
   const API_BASE_URL = "http://localhost:5154/api";
 
@@ -22,19 +26,13 @@ export default function HotelAdminManager() {
     setLoading(true);
     try {
       const params = new URLSearchParams();
-      if (searchCity) params.append("city", searchCity);
-      params.append("page", pagination.page);
-      params.append("pageSize", pagination.pageSize);
+      params.append("page", 1);
+      params.append("pageSize", 1000); // Get all hotels for client-side filtering
 
       const response = await axios.get(`${API_BASE_URL}/Hotels/search?${params.toString()}`);
-      setHotels(response.data.data || []);
-      if (response.data.pagination) {
-        setPagination(prev => ({
-          ...prev,
-          totalPages: response.data.pagination.totalPages,
-          page: response.data.pagination.currentPage
-        }));
-      }
+      let data = response.data.data || [];
+      setAllHotels(data);
+      applyFiltersAndSort(data);
     } catch (error) {
       console.error("Lỗi khi tải danh sách khách sạn:", error);
     } finally {
@@ -42,14 +40,61 @@ export default function HotelAdminManager() {
     }
   };
 
+  const applyFiltersAndSort = (data) => {
+    // Apply search filters
+    if (searchCity) {
+      data = data.filter(h => h.city?.toLowerCase().includes(searchCity.toLowerCase()));
+    }
+    if (searchName) {
+      data = data.filter(h => h.name?.toLowerCase().includes(searchName.toLowerCase()));
+    }
+    
+    // Apply sorting
+    data.sort((a, b) => {
+      let aVal, bVal;
+      if (sortBy === "name") {
+        aVal = a.name;
+        bVal = b.name;
+      } else if (sortBy === "city") {
+        aVal = a.city;
+        bVal = b.city;
+      }
+      
+      if (sortOrder === "asc") {
+        return aVal > bVal ? 1 : -1;
+      } else {
+        return aVal < bVal ? 1 : -1;
+      }
+    });
+    
+    // Apply pagination
+    const totalPages = Math.ceil(data.length / pagination.pageSize);
+    const startIdx = (pagination.page - 1) * pagination.pageSize;
+    const endIdx = startIdx + pagination.pageSize;
+    
+    setHotels(data.slice(startIdx, endIdx));
+    setPagination(prev => ({ ...prev, totalPages }));
+  };
+
   useEffect(() => {
     fetchHotels();
+  }, []);
+
+  useEffect(() => {
+    if (allHotels.length > 0) {
+      setPagination(prev => ({ ...prev, page: 1 }));
+      applyFiltersAndSort(allHotels);
+    }
+  }, [searchCity, searchName, sortBy, sortOrder]);
+
+  useEffect(() => {
+    if (allHotels.length > 0) {
+      applyFiltersAndSort(allHotels);
+    }
   }, [pagination.page]);
 
   const handleSearch = (e) => {
     e.preventDefault();
-    setPagination(prev => ({ ...prev, page: 1 }));
-    fetchHotels();
   };
 
   const saveHotel = async (e) => {
@@ -173,16 +218,36 @@ export default function HotelAdminManager() {
 
         {/* CỘT PHẢI: DANH SÁCH KHÁCH SẠN */}
         <div style={{ flex: '2', minWidth: '500px' }}>
-          <form onSubmit={handleSearch} style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '10px', marginBottom: '20px' }}>
             <input 
               type="text" 
-              placeholder="Lọc theo thành phố..." 
+              placeholder="Tìm theo tên khách sạn..." 
+              value={searchName}
+              onChange={(e) => setSearchName(e.target.value)}
+              style={{ padding: '8px', borderRadius: '5px', border: '1px solid #ccc' }}
+            />
+            <input 
+              type="text" 
+              placeholder="Tìm theo thành phố..." 
               value={searchCity}
               onChange={(e) => setSearchCity(e.target.value)}
-              style={{ padding: '8px', borderRadius: '5px', border: '1px solid #ccc', flex: 1 }}
+              style={{ padding: '8px', borderRadius: '5px', border: '1px solid #ccc' }}
             />
-            <button type="submit" style={{ padding: '8px 15px', background: 'var(--neon-blue)', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer' }}>Lọc</button>
-          </form>
+            <select 
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value)}
+              style={{ padding: '8px', borderRadius: '5px', border: '1px solid #ccc' }}
+            >
+              <option value="name">Sắp xếp: Tên</option>
+              <option value="city">Sắp xếp: Thành phố</option>
+            </select>
+            <button 
+              onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
+              style={{ padding: '8px', borderRadius: '5px', border: '1px solid #ccc', background: 'var(--neon-blue)', color: 'white', cursor: 'pointer', fontWeight: 'bold' }}
+            >
+              {sortOrder === 'asc' ? '⬆️ Tăng dần' : '⬇️ Giảm dần'}
+            </button>
+          </div>
 
           {loading ? (
              <div style={{ textAlign: "center", padding: "20px" }}>Đang tải...</div>
